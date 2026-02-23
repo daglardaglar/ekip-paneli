@@ -189,10 +189,10 @@ async function loadAllData() {
         }
 
         const [jobsRaw, membersRaw, seriesRaw, pricingRaw] = await Promise.all([
-            sheetsGet(`'${CONFIG.SHEETS.JOBS}'!A1:K10000`),
-            sheetsGet(`'${CONFIG.SHEETS.MEMBERS}'!A1:G10000`),
-            sheetsGet(`'${CONFIG.SHEETS.SERIES}'!A1:C10000`),
-            sheetsGet(`'${CONFIG.SHEETS.PRICING}'!A1:O10000`)
+            sheetsGet(`'${CONFIG.SHEETS.JOBS}'!A1:Z10000`),
+            sheetsGet(`'${CONFIG.SHEETS.MEMBERS}'!A1:Z10000`),
+            sheetsGet(`'${CONFIG.SHEETS.SERIES}'!A1:Z10000`),
+            sheetsGet(`'${CONFIG.SHEETS.PRICING}'!A1:Z10000`)
         ]);
 
         state.jobs = parseSheetData(jobsRaw);
@@ -237,7 +237,8 @@ function checkPermissions() {
     }
 
     const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
-    state.isAdmin = member && (member['Admin'] === 'Evet');
+    const adminVal = (member && member['Admin'] || '').toUpperCase();
+    state.isAdmin = adminVal === 'EVET' || adminVal === 'TRUE' || adminVal === '1';
 
     // UI Update: Hide Admin tabs if not admin
     const forbids = ['members', 'series', 'pricing'];
