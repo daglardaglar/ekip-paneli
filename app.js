@@ -695,6 +695,7 @@ function openAddJobModal() {
     ).join('');
 
     document.getElementById('add-job-chapter').value = '';
+    document.getElementById('add-job-kb').value = '';
     document.getElementById('add-job-file').value = '';
 
     // Member's default role
@@ -872,6 +873,7 @@ async function submitEditSeries() {
 async function submitAddJob() {
     const series = document.getElementById('add-job-series').value;
     const chapter = document.getElementById('add-job-chapter').value;
+    const kb = parseFloat(document.getElementById('add-job-kb').value || 0);
     const role = document.getElementById('add-job-role').value;
     const file = document.getElementById('add-job-file').value;
 
@@ -901,7 +903,7 @@ async function submitAddJob() {
             chapter,
             file,
             role,
-            0, // Ref KB
+            kb, // Ref KB
             0, // Ücret (backend calculates)
             memberName,
             memberEmail,
