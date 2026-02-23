@@ -431,7 +431,7 @@ function renderMembers() {
         );
     }
 
-    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet'];
+    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Toplam Kazanç'];
     const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet'];
 
     renderToolbar(false);
@@ -455,6 +455,11 @@ function renderMembers() {
             } else if (col === 'Karaliste') {
                 const badge = val === 'Evet' ? '<span class="role-badge black">HAYIR</span>' : '<span class="role-badge" style="opacity:0.3">TEMİZ</span>';
                 html += `<td data-label="${col}">${badge}</td>`;
+            } else if (col === 'Toplam Kazanç') {
+                const total = state.jobs
+                    .filter(j => (j['Email'] || '').toLowerCase() === (member['Email'] || '').toLowerCase())
+                    .reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
+                html += `<td data-label="${col}" style="font-weight:800; color:var(--accent-green);">${Math.round(total)} TL</td>`;
             } else {
                 html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
             }
@@ -697,6 +702,19 @@ function openAddJobModal() {
     document.getElementById('add-job-chapter').value = '';
     document.getElementById('add-job-kb').value = '';
     document.getElementById('add-job-file').value = '';
+    document.getElementById('add-job-email').value = state.user?.email || '';
+
+    // Admin email selection
+    const emailGroup = document.getElementById('add-job-email-group');
+    const datalist = document.getElementById('member-emails-list');
+    if (state.isAdmin) {
+        emailGroup.style.display = 'block';
+        datalist.innerHTML = state.members.map(m =>
+            `<option value="${escapeHtml(m['Email'])}">${escapeHtml(m['İsim'])} (${escapeHtml(m['Rol'])})</option>`
+        ).join('');
+    } else {
+        emailGroup.style.display = 'none';
+    }
 
     // Member's default role
     const member = state.members.find(m => (m['Email'] || '').toLowerCase() === (state.user?.email || '').toLowerCase());
@@ -899,7 +917,20 @@ async function submitAddJob() {
         const today = new Date().toISOString().split('T')[0];
         const member = state.members.find(m => (m['Email'] || '').toLowerCase() === (state.user?.email || '').toLowerCase());
         const memberName = member ? member['İsim'] : (state.user?.name || '');
-        const memberEmail = state.user?.email || '';
+
+        let memberEmail = state.user?.email || '';
+        if (state.isAdmin) {
+            const selectedEmail = document.getElementById('add-job-email').value.trim();
+            if (selectedEmail) {
+                memberEmail = selectedEmail;
+                // Update member name for the row if found
+                const targetMember = state.members.find(m => (m['Email'] || '').toLowerCase() === selectedEmail.toLowerCase());
+                if (targetMember) {
+                    // memberName will be used from targetMember effectively if we want, 
+                    // but usually it's better to keep the email as source of truth.
+                }
+            }
+        }
 
         // Find difficulty from series
         const s = state.series.find(x => x['Seri Adı'] === series);

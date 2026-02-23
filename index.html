@@ -268,6 +268,10 @@
                     <label>Referans KB</label>
                     <input type="number" id="add-job-kb" step="0.01" placeholder="Örn: 4.5">
                 </div>
+                <div class="form-group" id="add-job-email-group" style="display: none;">
+                    <label>Üye Email (Admin)</label>
+                    <input type="text" id="add-job-email" list="member-emails-list" placeholder="Üye email adresi">
+                </div>
                 <div class="form-group">
                     <label>Rolünüz</label>
                     <select id="add-job-role">
@@ -363,19 +367,22 @@
         </div>
 
         <!-- App Script -->
+        <datalist id="member-emails-list"></datalist>
+
         <script src="app.js"></script>
-        <script>
-            // Google Identity Services yüklendiğinde uygulamayı başlat
-            window.addEventListener('load', () => {
-                // GIS kütüphanesi yüklenene kadar bekle
-                const checkGIS = setInterval(() => {
-                    if (typeof google !== 'undefined' && google.accounts) {
-                        clearInterval(checkGIS);
-                        initApp();
-                    }
-                }, 100);
-            });
-        </script>
+</body>
+<script>
+    // Google Identity Services yüklendiğinde uygulamayı başlat
+    window.addEventListener('load', () => {
+        // GIS kütüphanesi yüklenene kadar bekle
+        const checkGIS = setInterval(() => {
+            if (typeof google !== 'undefined' && google.accounts) {
+                clearInterval(checkGIS);
+                initApp();
+            }
+        }, 100);
+    });
+</script>
 </body>
 
 </html>
