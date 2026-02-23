@@ -469,6 +469,12 @@ body::before {
     color: var(--accent-cyan);
 }
 
+.role-badge.kamp {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-red);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 /* Amount display */
 .amount {
     font-weight: 700;

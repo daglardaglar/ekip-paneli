@@ -384,6 +384,10 @@ function renderJobs() {
                 const isEditable = editableCols.includes(col);
                 const colIndex = getColumnIndex(CONFIG.SHEETS.JOBS, col);
 
+                // Üye kamp durumunu kontrol et
+                const jobMember = state.members.find(m => (m['Email'] || '').toLowerCase() === (job['Email'] || '').toLowerCase());
+                const isOnCamp = jobMember && jobMember['Kamp'] === 'Evet';
+
                 if (col === 'Dosya') {
                     if (val && val.startsWith('http')) {
                         html += `<td><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
@@ -391,9 +395,12 @@ function renderJobs() {
                         html += `<td style="color:var(--text-muted);">—</td>`;
                     }
                 } else if (col === 'Rol') {
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
+                    let cellVal = getRoleBadge(val);
+                    if (isOnCamp) cellVal += ' <span class="role-badge kamp" style="font-size:0.6rem;padding:1px 4px;">KAMP</span>';
+                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${cellVal}</td>`;
                 } else if (col === 'Ücret (TL)') {
-                    html += `<td class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${parseFloat(val || 0).toFixed(0)} TL</td>`;
+                    const displayAmt = isOnCamp ? '0' : parseFloat(val || 0).toFixed(0);
+                    html += `<td class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
                 } else {
                     html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
                 }
@@ -422,8 +429,8 @@ function renderMembers() {
         );
     }
 
-    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin'];
-    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin'];
+    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp'];
+    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp'];
 
     renderToolbar(false);
 
@@ -440,6 +447,8 @@ function renderMembers() {
 
             if (col === 'Rol') {
                 html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
+            } else if (col === 'Kamp' && val === 'Evet') {
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}><span class="role-badge kamp">KAMP</span></td>`;
             } else {
                 html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
             }
