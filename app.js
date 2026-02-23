@@ -397,12 +397,12 @@ function renderJobs() {
                 } else if (col === 'Rol') {
                     let cellVal = getRoleBadge(val);
                     if (isOnCamp) cellVal += ' <span class="role-badge kamp" style="font-size:0.6rem;padding:1px 4px;">KAMP</span>';
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${cellVal}</td>`;
+                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${cellVal}</td>`;
                 } else if (col === 'Ücret (TL)') {
                     const displayAmt = isOnCamp ? '0' : parseFloat(val || 0).toFixed(0);
-                    html += `<td class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
+                    html += `<td class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
                 } else {
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
+                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
                 }
             });
             html += '</tr>';
@@ -446,12 +446,12 @@ function renderMembers() {
             const colIndex = getColumnIndex(CONFIG.SHEETS.MEMBERS, col);
 
             if (col === 'Rol') {
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${getRoleBadge(val)}</td>`;
             } else if (col === 'Kamp') {
                 const badge = val === 'Evet' ? '<span class="role-badge kamp">KAMP</span>' : '<span class="role-badge" style="opacity:0.3">HAYIR</span>';
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${badge}</td>`;
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${badge}</td>`;
             } else {
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
             }
         });
         html += '</tr>';
@@ -488,7 +488,7 @@ function renderSeries() {
             const val = series[col] || '';
             const isEditable = editableCols.includes(col);
             const colIndex = getColumnIndex(CONFIG.SHEETS.SERIES, col);
-            html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.SERIES}', ${series._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
+            html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.SERIES}', ${series._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
         });
         html += '</tr>';
     });
@@ -523,7 +523,7 @@ function renderPricing() {
         columns.forEach(col => {
             const val = p[col] || '';
             const colIndex = getColumnIndex(CONFIG.SHEETS.PRICING, col);
-            html += `<td class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex})">${escapeHtml(val)}</td>`;
+            html += `<td class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex}, '${col}')">${escapeHtml(val)}</td>`;
         });
         html += '</tr>';
     });
@@ -567,20 +567,50 @@ function renderToolbar(showRoleFilter) {
 // ============================================================
 // INLINE EDITING
 // ============================================================
-function startEdit(cell, sheetName, rowIndex, colIndex) {
-    if (cell.querySelector('input')) return;
+function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
+    if (cell.querySelector('input') || cell.querySelector('select')) return;
 
     const currentValue = cell.textContent.replace(' TL', '').trim();
     const originalHTML = cell.innerHTML;
 
-    const input = document.createElement('input');
-    input.className = 'inline-edit';
-    input.value = currentValue;
+    let input;
+    const isBooleanCol = ['Kamp', 'Aktif', 'Karaliste', 'Admin'].includes(columnName);
+    const isDateCol = ['Mezuniyet', 'Tarih', 'Geçerlilik'].includes(columnName);
+    const isDifficultyCol = ['Zorluk'].includes(columnName);
+
+    if (isBooleanCol) {
+        input = document.createElement('select');
+        input.className = 'inline-edit';
+        input.innerHTML = `
+            <option value="Evet" ${currentValue === 'Evet' || currentValue === 'KAMP' ? 'selected' : ''}>Evet</option>
+            <option value="Hayır" ${currentValue === 'Hayır' ? 'selected' : ''}>Hayır</option>
+        `;
+    } else if (isDifficultyCol) {
+        input = document.createElement('select');
+        input.className = 'inline-edit';
+        input.innerHTML = `
+            <option value="EN_KOLAY" ${currentValue === 'EN_KOLAY' ? 'selected' : ''}>EN_KOLAY</option>
+            <option value="KOLAY" ${currentValue === 'KOLAY' ? 'selected' : ''}>KOLAY</option>
+            <option value="ORTA" ${currentValue === 'ORTA' ? 'selected' : ''}>ORTA</option>
+            <option value="ZOR" ${currentValue === 'ZOR' ? 'selected' : ''}>ZOR</option>
+        `;
+    } else {
+        input = document.createElement('input');
+        input.className = 'inline-edit';
+        input.type = isDateCol ? 'date' : 'text';
+        input.value = currentValue;
+    }
 
     cell.innerHTML = '';
     cell.appendChild(input);
     input.focus();
-    input.select();
+    if (input.select) input.select();
+
+    input.addEventListener('change', async () => {
+        if (isBooleanCol || isDifficultyCol || isDateCol) {
+            await saveEdit(cell, sheetName, rowIndex, colIndex, input.value, originalHTML);
+        }
+    });
 
     input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
@@ -592,10 +622,10 @@ function startEdit(cell, sheetName, rowIndex, colIndex) {
 
     input.addEventListener('blur', () => {
         setTimeout(() => {
-            if (cell.querySelector('input')) {
+            if (cell.querySelector('.inline-edit')) {
                 cell.innerHTML = originalHTML;
             }
-        }, 200);
+        }, 300);
     });
 }
 
