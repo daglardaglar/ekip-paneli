@@ -705,6 +705,18 @@ function openAddJobModal() {
     }
 
     document.getElementById('add-job-modal').classList.add('active');
+
+    // Add real-time listeners for price calculation
+    ['add-job-kb', 'add-job-role', 'add-job-series'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.removeEventListener('input', updatePriceEstimate);
+            el.removeEventListener('change', updatePriceEstimate);
+            el.addEventListener('input', updatePriceEstimate);
+            el.addEventListener('change', updatePriceEstimate);
+        }
+    });
+    updatePriceEstimate();
 }
 
 function closeAddJobModal() {
@@ -904,7 +916,7 @@ async function submitAddJob() {
             file,
             role,
             kb, // Ref KB
-            0, // Ücret (backend calculates)
+            calculateJobPrice(role, kb, difficulty), // Ücret (calculated)
             memberName,
             memberEmail,
             difficulty
@@ -993,9 +1005,127 @@ function getRoleBadge(role) {
 }
 
 function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+// ============================================================
+// PRICE CALCULATION LOGIC (Mirroring calculator.py)
+// ============================================================
+function updatePriceEstimate() {
+    const seriesName = document.getElementById('add-job-series').value;
+    const role = document.getElementById('add-job-role').value;
+    const kb = parseFloat(document.getElementById('add-job-kb').value || 0);
+
+    const series = state.series.find(s => s['Seri Adı'] === seriesName);
+    const difficulty = series ? series['Zorluk'] : 'ORTA';
+
+    const price = calculateJobPrice(role, kb, difficulty);
+
+    const estimateEl = document.getElementById('add-job-price-estimate');
+    if (kb > 0 || role.includes('Temiz')) {
+        estimateEl.style.display = 'block';
+        estimateEl.querySelector('.value').textContent = price + ' TL';
+    } else {
+        estimateEl.style.display = 'none';
+    }
+}
+
+function calculateJobPrice(role, kb, difficulty = 'ORTA') {
+    // Check if user is on camp (from state.members)
+    const currentUserEmail = (state.user?.email || '').toLowerCase();
+    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
+    if (member && member['Kamp'] === 'Evet') return 0;
+
+    // Get latest pricing from state
+    const p = state.pricing && state.pricing.length > 0 ? state.pricing[0] : null;
+
+    // Default rates (if pricing sheet is empty)
+    const traineeMultiplier = parseFloat(p?.['Acemi Çarpanı'] || 0.5);
+    const editorDiscount = parseFloat(p?.['Editör İndirimi'] || 3);
+
+    // 1. CLEANER (Fixed per chapter based on difficulty)
+    if (role.includes('Temizlikçi')) {
+        let base = 8;
+        if (difficulty === 'EN_KOLAY') base = parseFloat(p?.['Temiz EN KOLAY'] || 6);
+        else if (difficulty === 'KOLAY') base = parseFloat(p?.['Temiz KOLAY'] || 7);
+        else if (difficulty === 'ORTA') base = parseFloat(p?.['Temiz ORTA'] || 8);
+        else if (difficulty === 'ZOR') base = parseFloat(p?.['Temiz ZOR'] || 10);
+        return Math.round(base); // No trainee multiplier for cleaner as per calculator.py
+    }
+
+    // 2. KB BASED ROLES
+    let rates = [];
+    let multiplier = 1.0;
+
+    if (role === 'Çevirmen') {
+        rates = [
+            [0, 3, parseFloat(p?.['Çeviri 0-3 KB'] || 20)],
+            [3, 6, parseFloat(p?.['Çeviri 3-6 KB'] || 25)],
+            [6, 8, parseFloat(p?.['Çeviri 6-8 KB'] || 30)],
+            [8, 999, parseFloat(p?.['Çeviri 8+ KB'] || 35)]
+        ];
+    } else if (role === 'Dizgici') {
+        rates = [
+            [0, 3, parseFloat(p?.['Dizgi 0-3 KB'] || 10)],
+            [3, 6, parseFloat(p?.['Dizgi 3-6 KB'] || 15)],
+            [6, 7, parseFloat(p?.['Dizgi 6-7 KB'] || 20)],
+            [7, 999, parseFloat(p?.['Dizgi 7+ KB'] || 25)]
+        ];
+    } else if (role === 'Editör' || role === 'Redaktör') {
+        rates = [
+            [0, 3, parseFloat(p?.['Çeviri 0-3 KB'] || 20) - editorDiscount],
+            [3, 6, parseFloat(p?.['Çeviri 3-6 KB'] || 25) - editorDiscount],
+            [6, 8, parseFloat(p?.['Çeviri 6-8 KB'] || 30) - editorDiscount],
+            [8, 999, parseFloat(p?.['Çeviri 8+ KB'] || 35) - editorDiscount]
+        ];
+    } else if (role.includes('Acemi')) {
+        if (role.includes('Çevirmen')) {
+            multiplier = traineeMultiplier;
+            rates = [
+                [0, 3, parseFloat(p?.['Çeviri 0-3 KB'] || 20)],
+                [3, 6, parseFloat(p?.['Çeviri 3-6 KB'] || 25)],
+                [6, 8, parseFloat(p?.['Çeviri 6-8 KB'] || 30)],
+                [8, 999, parseFloat(p?.['Çeviri 8+ KB'] || 35)]
+            ];
+        } else if (role.includes('Dizgici')) {
+            multiplier = traineeMultiplier;
+            rates = [
+                [0, 3, parseFloat(p?.['Dizgi 0-3 KB'] || 10)],
+                [3, 6, parseFloat(p?.['Dizgi 3-6 KB'] || 15)],
+                [6, 7, parseFloat(p?.['Dizgi 6-7 KB'] || 20)],
+                [7, 999, parseFloat(p?.['Dizgi 7+ KB'] || 25)]
+            ];
+        } else if (role.includes('Redaktör') || role.includes('Editör')) {
+            // Acemi Redaktör gets full editor rates
+            rates = [
+                [0, 3, parseFloat(p?.['Çeviri 0-3 KB'] || 20) - editorDiscount],
+                [3, 6, parseFloat(p?.['Çeviri 3-6 KB'] || 25) - editorDiscount],
+                [6, 8, parseFloat(p?.['Çeviri 6-8 KB'] || 30) - editorDiscount],
+                [8, 999, parseFloat(p?.['Çeviri 8+ KB'] || 35) - editorDiscount]
+            ];
+        }
+    }
+
+    const roundedKb = Math.round(kb);
+    let amount = 0;
+    for (const [min, max, price] of rates) {
+        if (roundedKb > min && roundedKb <= max) {
+            amount = price;
+            break;
+        }
+    }
+
+    // If over max defined range
+    if (amount === 0 && roundedKb > 0 && rates.length > 0) {
+        if (roundedKb > rates[rates.length - 1][1]) {
+            amount = rates[rates.length - 1][2];
+        }
+    }
+
+    return Math.round(amount * multiplier);
 }
 
 function showLoading(active) {
