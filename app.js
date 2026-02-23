@@ -429,8 +429,8 @@ function renderMembers() {
         );
     }
 
-    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp'];
-    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp'];
+    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet'];
+    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet'];
 
     renderToolbar(false);
 
@@ -447,8 +447,9 @@ function renderMembers() {
 
             if (col === 'Rol') {
                 html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
-            } else if (col === 'Kamp' && val === 'Evet') {
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}><span class="role-badge kamp">KAMP</span></td>`;
+            } else if (col === 'Kamp') {
+                const badge = val === 'Evet' ? '<span class="role-badge kamp">KAMP</span>' : '<span class="role-badge" style="opacity:0.3">HAYIR</span>';
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${badge}</td>`;
             } else {
                 html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
             }
