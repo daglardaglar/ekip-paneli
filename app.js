@@ -564,13 +564,14 @@ function renderToolbar(showRoleFilter) {
     toolbarEl.innerHTML = html;
 }
 
-// ============================================================
-// INLINE EDITING
-// ============================================================
 function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
-    if (cell.querySelector('input') || cell.querySelector('select')) return;
+    if (cell.querySelector('.inline-edit')) return;
 
-    const currentValue = cell.textContent.replace(' TL', '').trim();
+    // Badge içindeki metni veya ham metni al
+    let currentValue = cell.textContent.trim();
+    if (currentValue === 'KAMP') currentValue = 'Evet';
+    if (currentValue === 'HAYIR') currentValue = 'Hayır';
+
     const originalHTML = cell.innerHTML;
 
     let input;
@@ -582,7 +583,7 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
         input = document.createElement('select');
         input.className = 'inline-edit';
         input.innerHTML = `
-            <option value="Evet" ${currentValue === 'Evet' || currentValue === 'KAMP' ? 'selected' : ''}>Evet</option>
+            <option value="Evet" ${currentValue === 'Evet' ? 'selected' : ''}>Evet</option>
             <option value="Hayır" ${currentValue === 'Hayır' ? 'selected' : ''}>Hayır</option>
         `;
     } else if (isDifficultyCol) {
@@ -598,19 +599,20 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
         input = document.createElement('input');
         input.className = 'inline-edit';
         input.type = isDateCol ? 'date' : 'text';
-        input.value = currentValue;
+        input.value = currentValue.replace(' TL', '');
     }
 
     cell.innerHTML = '';
     cell.appendChild(input);
     input.focus();
-    if (input.select) input.select();
+    if (input.select && !isDateCol) input.select();
 
-    input.addEventListener('change', async () => {
-        if (isBooleanCol || isDifficultyCol || isDateCol) {
+    // Dropdownlar için seçer seçmez kaydet
+    if (isBooleanCol || isDifficultyCol) {
+        input.addEventListener('change', async () => {
             await saveEdit(cell, sheetName, rowIndex, colIndex, input.value, originalHTML);
-        }
-    });
+        });
+    }
 
     input.addEventListener('keydown', async (e) => {
         if (e.key === 'Enter') {
@@ -620,12 +622,18 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
         }
     });
 
-    input.addEventListener('blur', () => {
-        setTimeout(() => {
+    // Blur olduğunda eğer seçmeli değilse (dropdown değilse) iptal et veya kaydet
+    input.addEventListener('blur', async () => {
+        // Dropdownlarda change zaten kaydetti, date için blur'da kaydetmek iyi olabilir
+        setTimeout(async () => {
             if (cell.querySelector('.inline-edit')) {
-                cell.innerHTML = originalHTML;
+                if (isDateCol && input.value && input.value !== currentValue) {
+                    await saveEdit(cell, sheetName, rowIndex, colIndex, input.value, originalHTML);
+                } else {
+                    cell.innerHTML = originalHTML;
+                }
             }
-        }, 300);
+        }, 200);
     });
 }
 
