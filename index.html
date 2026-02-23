@@ -124,6 +124,45 @@
         </main>
     </div>
 
+    <!-- ===== ADD JOB MODAL ===== -->
+    <div id="add-job-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Yeni İş Ekle</h2>
+                <button class="btn-close" onclick="closeAddJobModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Seri Seçin</label>
+                    <select id="add-job-series"></select>
+                </div>
+                <div class="form-group">
+                    <label>Bölüm Numarası</label>
+                    <input type="text" id="add-job-chapter" placeholder="Örn: 5 veya 10.5">
+                </div>
+                <div class="form-group">
+                    <label>Rolünüz</label>
+                    <select id="add-job-role">
+                        <option value="Çevirmen">Çevirmen</option>
+                        <option value="Dizgici">Dizgici</option>
+                        <option value="Temizlikçi">Temizlikçi</option>
+                        <option value="Redaktör">Redaktör</option>
+                        <option value="Editör">Editör</option>
+                        <option value="Acemi">Acemi</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Dosya / Drive Linki (Opsiyonel)</label>
+                    <input type="text" id="add-job-file" placeholder="https://drive.google.com/...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action secondary" onclick="closeAddJobModal()">İptal</button>
+                <button class="btn-action primary" onclick="submitAddJob()">Ekle</button>
+            </div>
+        </div>
+    </div>
+
     <!-- App Script -->
     <script src="app.js"></script>
     <script>

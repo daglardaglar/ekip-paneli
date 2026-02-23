@@ -11,8 +11,8 @@ const CONFIG = {
     // Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID (Web)
     CLIENT_ID: '1024428338409-pp684rcmi26pt1119uvgcc7g9nm49pau.apps.googleusercontent.com',
 
-    // Google Sheets API Scope
-    SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
+    // Google Sheets API Scope + Identity Scopes
+    SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email openid',
 
     // Spreadsheet ID — sheets_sync.py tarafından oluşturulur
     SPREADSHEET_ID: '11zDw2n4rE8SYOUrQdhNdj7_Y2FkPUJNuCegz9kuXygk',
@@ -76,6 +76,7 @@ function handleSignOut() {
         google.accounts.oauth2.revoke(state.accessToken, () => {
             state.accessToken = null;
             state.user = null;
+            state.isAdmin = false;
             document.getElementById('login-screen').style.display = 'flex';
             document.getElementById('app-screen').style.display = 'none';
         });
@@ -89,7 +90,14 @@ async function onSignedIn() {
         });
         state.user = await res.json();
     } catch (e) {
+        console.error('Userinfo error:', e);
         state.user = { name: 'Kullanıcı', picture: '', email: '' };
+    }
+
+    if (!state.user || !state.user.email) {
+        showToast('Google hesabınızdan email bilgisi alınamadı. Lütfen yetkileri onaylayın.', 'error');
+        handleSignOut();
+        return;
     }
 
     document.getElementById('login-screen').style.display = 'none';
@@ -133,6 +141,23 @@ async function sheetsUpdate(range, values) {
     if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error?.message || 'Güncelleme hatası');
+    }
+    return await res.json();
+}
+
+async function sheetsAppend(range, values) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ values })
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || 'Ekleme hatası');
     }
     return await res.json();
 }
@@ -188,25 +213,25 @@ function parseSheetData(rawValues) {
 
 function checkPermissions() {
     const currentUserEmail = (state.user?.email || '').toLowerCase();
-    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
 
+    if (!currentUserEmail) {
+        state.isAdmin = false;
+        return;
+    }
+
+    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
     state.isAdmin = member && (member['Admin'] === 'Evet');
 
     // UI Update: Hide Admin tabs if not admin
-    const navBar = document.querySelector('.tabs');
-    if (!state.isAdmin) {
-        // Members ve Series tablarını sadece adminler görsün
-        const forbiddenTabs = ['members', 'series', 'pricing'];
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            if (forbiddenTabs.includes(btn.dataset.tab)) {
-                btn.style.display = 'none';
-            }
-        });
-        if (forbiddenTabs.includes(state.activeTab)) {
-            switchTab('jobs');
+    const forbids = ['members', 'series', 'pricing'];
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (forbits.includes(btn.dataset.tab)) {
+            btn.style.display = state.isAdmin ? '' : 'none';
         }
-    } else {
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.style.display = '');
+    });
+
+    if (!state.isAdmin && forbids.includes(state.activeTab)) {
+        switchTab('jobs');
     }
 }
 
@@ -218,26 +243,38 @@ function updateStats() {
     const totalJobs = jobs.length;
     const totalAmount = jobs.reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
 
-    document.getElementById('stat-jobs').textContent = totalJobs;
-    document.getElementById('stat-amount').textContent = totalAmount.toFixed(0) + ' TL';
+    const statJobs = document.getElementById('stat-jobs');
+    const statAmount = document.getElementById('stat-amount');
+    const statMembers = document.getElementById('stat-members');
+    const statSeries = document.getElementById('stat-series');
 
-    // Üyeler ve Seriler sadece adminler için anlamlı
+    if (statJobs) statJobs.textContent = totalJobs;
+    if (statAmount) statAmount.textContent = totalAmount.toFixed(0) + ' TL';
+
     if (state.isAdmin) {
-        document.getElementById('stat-members').textContent = state.members.length;
-        document.getElementById('stat-series').textContent = state.series.length;
-        document.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(4, 1fr)';
+        if (statMembers) {
+            statMembers.parentElement.style.display = 'flex';
+            statMembers.textContent = state.members.length;
+        }
+        if (statSeries) {
+            statSeries.parentElement.style.display = 'flex';
+            statSeries.textContent = state.series.length;
+        }
+        document.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
     } else {
-        document.getElementById('stat-members').parentElement.style.display = 'none';
-        document.getElementById('stat-series').parentElement.style.display = 'none';
+        if (statMembers) statMembers.parentElement.style.display = 'none';
+        if (statSeries) statSeries.parentElement.style.display = 'none';
         document.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(2, 1fr)';
     }
 }
 
 function getFilteredJobs() {
+    if (!state.user || !state.user.email) return [];
+
     let data = [...state.jobs];
 
     // Email Filtering — Admin olmayanlar sadece kendisininkini görsün
-    if (!state.isAdmin && state.user?.email) {
+    if (!state.isAdmin) {
         const email = state.user.email.toLowerCase();
         data = data.filter(j => (j['Email'] || '').toLowerCase() === email);
     }
@@ -494,7 +531,8 @@ function renderToolbar(showRoleFilter) {
         `;
     }
 
-    html += `<button class="btn-action primary" onclick="loadAllData()">🔄 Yenile</button>`;
+    html += `<button class="btn-action primary" onclick="openAddJobModal()">✨ Yeni İş Ekle</button>`;
+    html += `<button class="btn-action secondary" onclick="loadAllData()">🔄 Yenile</button>`;
 
     toolbarEl.innerHTML = html;
 }
@@ -546,6 +584,83 @@ async function saveEdit(cell, sheetName, rowIndex, colIndex, newValue, fallbackH
     } catch (e) {
         cell.innerHTML = fallbackHTML;
         showToast('Güncelleme hatası: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// ADD JOB MODAL LOGIC
+// ============================================================
+function openAddJobModal() {
+    const select = document.getElementById('add-job-series');
+    select.innerHTML = state.series.map(s =>
+        `<option value="${escapeHtml(s['Seri Adı'])}">${escapeHtml(s['Seri Adı'])}</option>`
+    ).join('');
+
+    document.getElementById('add-job-chapter').value = '';
+    document.getElementById('add-job-file').value = '';
+
+    // Member's default role
+    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === (state.user?.email || '').toLowerCase());
+    if (member && member['Rol']) {
+        document.getElementById('add-job-role').value = member['Rol'];
+    }
+
+    document.getElementById('add-job-modal').classList.add('active');
+}
+
+function closeAddJobModal() {
+    document.getElementById('add-job-modal').classList.remove('active');
+}
+
+async function submitAddJob() {
+    const series = document.getElementById('add-job-series').value;
+    const chapter = document.getElementById('add-job-chapter').value;
+    const role = document.getElementById('add-job-role').value;
+    const file = document.getElementById('add-job-file').value;
+
+    if (!series || !chapter) {
+        showToast('Lütfen seri ve bölüm alanlarını doldurun!', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const member = state.members.find(m => (m['Email'] || '').toLowerCase() === (state.user?.email || '').toLowerCase());
+        const memberName = member ? member['İsim'] : (state.user?.name || '');
+        const memberEmail = state.user?.email || '';
+
+        // Find difficulty from series
+        const s = state.series.find(x => x['Seri Adı'] === series);
+        const difficulty = s ? s['Zorluk'] : 'ORTA';
+
+        // Row format: ID(new), Tarih, Seri, Bölüm, Dosya, Rol, Ref KB, Ücret, Üye Adı, Email, Zorluk
+        // We leave ID empty or let Sheet generate? actually IDs are managed by the pull script.
+        // We can use 0 or something for "NEW" jobs to be assigned later by backend.
+        const newRow = [
+            'NEW',
+            today,
+            series,
+            chapter,
+            file,
+            role,
+            0, // Ref KB
+            0, // Ücret (backend calculates)
+            memberName,
+            memberEmail,
+            difficulty
+        ];
+
+        await sheetsAppend(`'${CONFIG.SHEETS.JOBS}'!A2`, [newRow]);
+
+        showToast('İş başarıyla eklendi! ✨', 'success');
+        closeAddJobModal();
+        await loadAllData();
+    } catch (e) {
+        showToast('Ekleme hatası: ' + e.message, 'error');
+        console.error(e);
+    } finally {
+        showLoading(false);
     }
 }
 
