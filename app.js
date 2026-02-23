@@ -477,7 +477,7 @@ function renderSeries() {
         data = data.filter(s => (s['Seri Adı'] || '').toLowerCase().includes(q));
     }
 
-    const columns = ['ID', 'Seri Adı', 'Zorluk', 'Çeviri Link', 'Dizgi Link', 'Temiz Link'];
+    const columns = ['ID', 'Seri Adı', 'Zorluk', 'Ana ID', 'Çevirmen ID', 'Acemi Çevirmen ID', 'Dizgici ID', 'Acemi Dizgici ID', 'Temizlikçi ID'];
     const editableCols = ['Seri Adı', 'Zorluk'];
 
     renderToolbar(false);
@@ -494,8 +494,9 @@ function renderSeries() {
         html += `<tr class="clickable" onclick="openEditSeriesModal(${series._rowIndex - 2})">`;
         columns.forEach(col => {
             let val = series[col] || '';
-            if (col.includes('Link') && val.startsWith('http')) {
-                html += `<td data-label="${col}"><a href="${val}" target="_blank" class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);text-decoration:none;" onclick="event.stopPropagation()">DRİVE 🔗</a></td>`;
+            if (col.includes('ID') && val.length > 5) {
+                // IDs are usually long strings, show as a mini badge with title
+                html += `<td data-label="${col}"><span class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);font-size:0.7rem;" title="${val}">${val.substring(0, 8)}...</span></td>`;
             } else {
                 html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
             }
@@ -770,20 +771,26 @@ function closeAddSeriesModal() {
 }
 
 async function submitAddSeries() {
-    const name = document.getElementById('add-series-name').value.trim();
-    const difficulty = document.getElementById('add-series-difficulty').value;
-    const tr = document.getElementById('add-series-tr').value.trim();
-    const tp = document.getElementById('add-series-tp').value.trim();
-    const cl = document.getElementById('add-series-cl').value.trim();
+    const payload = [
+        'NEW',
+        document.getElementById('add-series-name').value.trim(),
+        document.getElementById('add-series-difficulty').value,
+        document.getElementById('add-series-main-id').value.trim(),
+        document.getElementById('add-series-translator-id').value.trim(),
+        document.getElementById('add-series-trainee-translator-id').value.trim(),
+        document.getElementById('add-series-typesetter-id').value.trim(),
+        document.getElementById('add-series-trainee-typesetter-id').value.trim(),
+        document.getElementById('add-series-cleaner-id').value.trim()
+    ];
 
-    if (!name) {
+    if (!payload[1]) {
         showToast('Lütfen seri adını girin!', 'error');
         return;
     }
 
     showLoading(true);
     try {
-        const rowData = [['NEW', name, difficulty, tr, tp, cl]];
+        const rowData = [payload];
         const range = `'${CONFIG.SHEETS.SERIES}'!A2`;
         await sheetsUpdate(range, rowData);
 
@@ -802,9 +809,12 @@ function openEditSeriesModal(idx) {
     document.getElementById('edit-series-index').value = idx;
     document.getElementById('edit-series-name').value = series['Seri Adı'] || '';
     document.getElementById('edit-series-difficulty').value = series['Zorluk'] || 'ORTA';
-    document.getElementById('edit-series-tr').value = series['Çeviri Link'] || '';
-    document.getElementById('edit-series-tp').value = series['Dizgi Link'] || '';
-    document.getElementById('edit-series-cl').value = series['Temiz Link'] || '';
+    document.getElementById('edit-series-main-id').value = series['Ana ID'] || '';
+    document.getElementById('edit-series-translator-id').value = series['Çevirmen ID'] || '';
+    document.getElementById('edit-series-trainee-translator-id').value = series['Acemi Çevirmen ID'] || '';
+    document.getElementById('edit-series-typesetter-id').value = series['Dizgici ID'] || '';
+    document.getElementById('edit-series-trainee-typesetter-id').value = series['Acemi Dizgici ID'] || '';
+    document.getElementById('edit-series-cleaner-id').value = series['Temizlikçi ID'] || '';
 
     document.getElementById('edit-series-modal').classList.add('active');
 }
@@ -820,9 +830,12 @@ async function submitEditSeries() {
 
     const updates = {
         'Zorluk': document.getElementById('edit-series-difficulty').value,
-        'Çeviri Link': document.getElementById('edit-series-tr').value.trim(),
-        'Dizgi Link': document.getElementById('edit-series-tp').value.trim(),
-        'Temiz Link': document.getElementById('edit-series-cl').value.trim()
+        'Ana ID': document.getElementById('edit-series-main-id').value.trim(),
+        'Çevirmen ID': document.getElementById('edit-series-translator-id').value.trim(),
+        'Acemi Çevirmen ID': document.getElementById('edit-series-trainee-translator-id').value.trim(),
+        'Dizgici ID': document.getElementById('edit-series-typesetter-id').value.trim(),
+        'Acemi Dizgici ID': document.getElementById('edit-series-trainee-typesetter-id').value.trim(),
+        'Temizlikçi ID': document.getElementById('edit-series-cleaner-id').value.trim()
     };
 
     showLoading(true);
@@ -912,7 +925,9 @@ function getColumnIndex(sheetName, columnName) {
             'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6, 'Admin': 7, 'Kamp': 8, 'Mezuniyet': 9
         },
         [CONFIG.SHEETS.SERIES]: {
-            'ID': 1, 'Seri Adı': 2, 'Zorluk': 3, 'Çeviri Link': 4, 'Dizgi Link': 5, 'Temiz Link': 6
+            'ID': 1, 'Seri Adı': 2, 'Zorluk': 3, 'Ana ID': 4,
+            'Çevirmen ID': 5, 'Acemi Çevirmen ID': 6, 'Dizgici ID': 7,
+            'Acemi Dizgici ID': 8, 'Temizlikçi ID': 9
         },
         [CONFIG.SHEETS.PRICING]: {
             'Geçerlilik': 1,
