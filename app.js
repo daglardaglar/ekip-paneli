@@ -41,6 +41,7 @@ let state = {
     activeTab: 'jobs',
     searchQuery: '',
     filterRole: '',
+    showOnlyMyJobs: false,
     sortColumn: null,
     sortDirection: 'asc'
 };
@@ -291,9 +292,9 @@ function getFilteredJobs() {
 
     let data = [...state.jobs];
 
-    // Email Filtering — Admin olmayanlar sadece kendisininkini görsün
-    if (!state.isAdmin) {
-        const email = state.user.email.toLowerCase();
+    // Email Filtering — Admin olmayanlar veya "Sadece Benim" modundaki adminler sadece kendinisinkini görsün
+    if (!state.isAdmin || state.showOnlyMyJobs) {
+        const email = (state.user?.email || '').toLowerCase();
         data = data.filter(j => (j['Email'] || '').toLowerCase() === email);
     }
     return data;
@@ -578,6 +579,15 @@ function renderToolbar(showRoleFilter, force = false) {
                 <option value="Redaktör" ${state.filterRole === 'Redaktör' ? 'selected' : ''}>Redaktör</option>
                 <option value="Acemi" ${state.filterRole === 'Acemi' ? 'selected' : ''}>Acemi</option>
             </select>
+        `;
+
+        // Admin'e özel "Sadece Benim İşlerim" butonu
+        html += `
+            <button class="btn-action ${state.showOnlyMyJobs ? 'primary' : 'secondary'}" 
+                    onclick="toggleMyJobs()" 
+                    title="Sadece kendi işlerinizi görmek için tıklayın">
+                ${state.showOnlyMyJobs ? '👥 Tüm İşler' : '👤 Sadece Benim'}
+            </button>
         `;
     }
 
@@ -951,6 +961,11 @@ function handleSearch(value) {
 
 function handleRoleFilter(value) {
     state.filterRole = value;
+    renderActiveTab();
+}
+
+function toggleMyJobs() {
+    state.showOnlyMyJobs = !state.showOnlyMyJobs;
     renderActiveTab();
 }
 
