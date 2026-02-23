@@ -627,6 +627,8 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
     const isBooleanCol = ['Kamp', 'Aktif', 'Karaliste', 'Admin'].includes(columnName);
     const isDateCol = ['Mezuniyet', 'Tarih', 'Geçerlilik'].includes(columnName);
     const isDifficultyCol = ['Zorluk'].includes(columnName);
+    const isSeriesCol = ['Seri'].includes(columnName);
+    const isEmailCol = ['Email'].includes(columnName);
 
     if (isBooleanCol) {
         input = document.createElement('select');
@@ -644,6 +646,18 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
             <option value="ORTA" ${currentValue === 'ORTA' ? 'selected' : ''}>ORTA</option>
             <option value="ZOR" ${currentValue === 'ZOR' ? 'selected' : ''}>ZOR</option>
         `;
+    } else if (isSeriesCol) {
+        input = document.createElement('select');
+        input.className = 'inline-edit';
+        input.innerHTML = state.series.map(s =>
+            `<option value="${escapeHtml(s['Seri Adı'])}" ${s['Seri Adı'] === currentValue ? 'selected' : ''}>${escapeHtml(s['Seri Adı'])}</option>`
+        ).join('');
+    } else if (isEmailCol) {
+        input = document.createElement('select');
+        input.className = 'inline-edit';
+        input.innerHTML = state.members.map(m =>
+            `<option value="${escapeHtml(m['Email'])}" ${m['Email'] === currentValue ? 'selected' : ''}>${escapeHtml(m['İsim'])} (${escapeHtml(m['Email'])})</option>`
+        ).join('');
     } else {
         input = document.createElement('input');
         input.className = 'inline-edit';
@@ -657,7 +671,7 @@ function startEdit(cell, sheetName, rowIndex, colIndex, columnName) {
     if (input.select && !isDateCol) input.select();
 
     // Dropdownlar için seçer seçmez kaydet
-    if (isBooleanCol || isDifficultyCol) {
+    if (isBooleanCol || isDifficultyCol || isSeriesCol || isEmailCol) {
         input.addEventListener('change', async () => {
             await saveEdit(cell, sheetName, rowIndex, colIndex, input.value, originalHTML);
         });
@@ -1186,4 +1200,24 @@ function showToast(message, type = 'info') {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+async function deleteJob(rowIndex) {
+    if (!confirm('Bu işi silmek istediğinize emin misiniz?')) return;
+
+    showLoading(true);
+    try {
+        const colCount = 11; // ID to Zorluk
+        const range = `'${CONFIG.SHEETS.JOBS}'!A${rowIndex}:${String.fromCharCode(64 + colCount)}${rowIndex}`;
+        const emptyRow = new Array(colCount).fill('');
+
+        await sheetsUpdate(range, [emptyRow]);
+
+        showToast('İş silindi! ✓', 'success');
+        await loadAllData();
+    } catch (e) {
+        showToast('Silme hatası: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
