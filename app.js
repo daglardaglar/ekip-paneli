@@ -31,6 +31,7 @@ const CONFIG = {
 // ============================================================
 let state = {
     user: null,
+    isAdmin: false,
     tokenClient: null,
     accessToken: null,
     jobs: [],
@@ -88,7 +89,7 @@ async function onSignedIn() {
         });
         state.user = await res.json();
     } catch (e) {
-        state.user = { name: 'Kullanıcı', picture: '' };
+        state.user = { name: 'Kullanıcı', picture: '', email: '' };
     }
 
     document.getElementById('login-screen').style.display = 'none';
@@ -141,13 +142,13 @@ async function loadAllData() {
     try {
         if (!CONFIG.SPREADSHEET_ID) {
             showLoading(false);
-            showToast('SPREADSHEET_ID ayarlanmamış! app.js içindeki CONFIG.SPREADSHEET_ID değerini güncelleyin.', 'error');
+            showToast('SPREADSHEET_ID ayarlanmamış!', 'error');
             return;
         }
 
         const [jobsRaw, membersRaw, seriesRaw, pricingRaw] = await Promise.all([
-            sheetsGet(`'${CONFIG.SHEETS.JOBS}'!A1:J10000`),
-            sheetsGet(`'${CONFIG.SHEETS.MEMBERS}'!A1:F10000`),
+            sheetsGet(`'${CONFIG.SHEETS.JOBS}'!A1:K10000`),
+            sheetsGet(`'${CONFIG.SHEETS.MEMBERS}'!A1:G10000`),
             sheetsGet(`'${CONFIG.SHEETS.SERIES}'!A1:C10000`),
             sheetsGet(`'${CONFIG.SHEETS.PRICING}'!A1:O10000`)
         ]);
@@ -157,10 +158,13 @@ async function loadAllData() {
         state.series = parseSheetData(seriesRaw);
         state.pricing = parseSheetData(pricingRaw);
 
+        // Check Admin Status
+        checkPermissions();
+
         updateStats();
         renderActiveTab();
 
-        showToast(`${state.jobs.length} iş, ${state.members.length} üye yüklendi`, 'success');
+        showToast(`Veriler yüklendi`, 'success');
     } catch (e) {
         showToast('Veri yükleme hatası: ' + e.message, 'error');
         console.error(e);
@@ -170,7 +174,7 @@ async function loadAllData() {
 }
 
 function parseSheetData(rawValues) {
-    if (!rawValues || rawValues.length < 2) return [];
+    if (!rawValues || rawValues.length < 1) return [];
     const headers = rawValues[0];
     const rows = rawValues.slice(1);
     return rows.map((row, idx) => {
@@ -182,19 +186,62 @@ function parseSheetData(rawValues) {
     });
 }
 
+function checkPermissions() {
+    const currentUserEmail = (state.user?.email || '').toLowerCase();
+    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
+
+    state.isAdmin = member && (member['Admin'] === 'Evet');
+
+    // UI Update: Hide Admin tabs if not admin
+    const navBar = document.querySelector('.tabs');
+    if (!state.isAdmin) {
+        // Members ve Series tablarını sadece adminler görsün
+        const forbiddenTabs = ['members', 'series', 'pricing'];
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            if (forbiddenTabs.includes(btn.dataset.tab)) {
+                btn.style.display = 'none';
+            }
+        });
+        if (forbiddenTabs.includes(state.activeTab)) {
+            switchTab('jobs');
+        }
+    } else {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.style.display = '');
+    }
+}
+
 // ============================================================
 // STATS
 // ============================================================
 function updateStats() {
-    const totalJobs = state.jobs.length;
-    const totalMembers = state.members.length;
-    const totalAmount = state.jobs.reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
-    const totalSeries = state.series.length;
+    const jobs = getFilteredJobs();
+    const totalJobs = jobs.length;
+    const totalAmount = jobs.reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
 
     document.getElementById('stat-jobs').textContent = totalJobs;
-    document.getElementById('stat-members').textContent = totalMembers;
     document.getElementById('stat-amount').textContent = totalAmount.toFixed(0) + ' TL';
-    document.getElementById('stat-series').textContent = totalSeries;
+
+    // Üyeler ve Seriler sadece adminler için anlamlı
+    if (state.isAdmin) {
+        document.getElementById('stat-members').textContent = state.members.length;
+        document.getElementById('stat-series').textContent = state.series.length;
+        document.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(4, 1fr)';
+    } else {
+        document.getElementById('stat-members').parentElement.style.display = 'none';
+        document.getElementById('stat-series').parentElement.style.display = 'none';
+        document.querySelector('.stats-grid').style.gridTemplateColumns = 'repeat(2, 1fr)';
+    }
+}
+
+function getFilteredJobs() {
+    let data = [...state.jobs];
+
+    // Email Filtering — Admin olmayanlar sadece kendisininkini görsün
+    if (!state.isAdmin && state.user?.email) {
+        const email = state.user.email.toLowerCase();
+        data = data.filter(j => (j['Email'] || '').toLowerCase() === email);
+    }
+    return data;
 }
 
 // ============================================================
@@ -222,10 +269,10 @@ function renderActiveTab() {
 }
 
 // ============================================================
-// RENDER JOBS — seriye göre gruplu, drive linki ile
+// RENDER JOBS
 // ============================================================
 function renderJobs() {
-    let data = [...state.jobs];
+    let data = getFilteredJobs();
 
     if (state.searchQuery) {
         const q = state.searchQuery.toLowerCase();
@@ -273,7 +320,7 @@ function renderJobs() {
         let lastSeries = '';
         data.forEach(job => {
             const currentSeries = job['Seri'] || '';
-            if (currentSeries !== lastSeries && currentSeries) {
+            if (currentSeries !== lastSeries && currentSeries && state.isAdmin) {
                 html += `<tr><td colspan="${columns.length}" style="background:rgba(79,140,255,0.08);padding:8px 16px;font-weight:700;color:var(--accent-blue);border-left:3px solid var(--accent-blue);">📚 ${escapeHtml(currentSeries)}</td></tr>`;
                 lastSeries = currentSeries;
             }
@@ -284,9 +331,8 @@ function renderJobs() {
                 const colIndex = getColumnIndex(CONFIG.SHEETS.JOBS, col);
 
                 if (col === 'Dosya') {
-                    const fileId = extractFileId(val);
-                    if (fileId) {
-                        html += `<td><a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
+                    if (val && val.startsWith('http')) {
+                        html += `<td><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
                     } else {
                         html += `<td style="color:var(--text-muted);">—</td>`;
                     }
@@ -306,17 +352,11 @@ function renderJobs() {
     document.getElementById('table-container').innerHTML = html;
 }
 
-function extractFileId(cellValue) {
-    if (!cellValue) return null;
-    const match = cellValue.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match) return match[1];
-    return null;
-}
-
 // ============================================================
 // RENDER MEMBERS
 // ============================================================
 function renderMembers() {
+    if (!state.isAdmin) return;
     let data = [...state.members];
 
     if (state.searchQuery) {
@@ -328,8 +368,8 @@ function renderMembers() {
         );
     }
 
-    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste'];
-    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste'];
+    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin'];
+    const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin'];
 
     renderToolbar(false);
 
@@ -337,25 +377,21 @@ function renderMembers() {
     columns.forEach(col => html += `<th>${col}</th>`);
     html += '</tr></thead><tbody>';
 
-    if (data.length === 0) {
-        html += `<tr><td colspan="${columns.length}"><div class="empty-state"><div class="icon">👥</div><h3>Üye bulunamadı</h3></div></td></tr>`;
-    } else {
-        data.forEach(member => {
-            html += '<tr>';
-            columns.forEach(col => {
-                const val = member[col] || '';
-                const isEditable = editableCols.includes(col);
-                const colIndex = getColumnIndex(CONFIG.SHEETS.MEMBERS, col);
+    data.forEach(member => {
+        html += '<tr>';
+        columns.forEach(col => {
+            const val = member[col] || '';
+            const isEditable = editableCols.includes(col);
+            const colIndex = getColumnIndex(CONFIG.SHEETS.MEMBERS, col);
 
-                if (col === 'Rol') {
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
-                } else {
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
-                }
-            });
-            html += '</tr>';
+            if (col === 'Rol') {
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${getRoleBadge(val)}</td>`;
+            } else {
+                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
+            }
         });
-    }
+        html += '</tr>';
+    });
 
     html += '</tbody></table>';
     document.getElementById('table-container').innerHTML = html;
@@ -365,6 +401,7 @@ function renderMembers() {
 // RENDER SERIES
 // ============================================================
 function renderSeries() {
+    if (!state.isAdmin) return;
     let data = [...state.series];
 
     if (state.searchQuery) {
@@ -381,29 +418,26 @@ function renderSeries() {
     columns.forEach(col => html += `<th>${col}</th>`);
     html += '</tr></thead><tbody>';
 
-    if (data.length === 0) {
-        html += `<tr><td colspan="${columns.length}"><div class="empty-state"><div class="icon">📚</div><h3>Seri bulunamadı</h3></div></td></tr>`;
-    } else {
-        data.forEach(series => {
-            html += '<tr>';
-            columns.forEach(col => {
-                const val = series[col] || '';
-                const isEditable = editableCols.includes(col);
-                const colIndex = getColumnIndex(CONFIG.SHEETS.SERIES, col);
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.SERIES}', ${series._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
-            });
-            html += '</tr>';
+    data.forEach(series => {
+        html += '<tr>';
+        columns.forEach(col => {
+            const val = series[col] || '';
+            const isEditable = editableCols.includes(col);
+            const colIndex = getColumnIndex(CONFIG.SHEETS.SERIES, col);
+            html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.SERIES}', ${series._rowIndex}, ${colIndex})"` : ''}>${escapeHtml(val)}</td>`;
         });
-    }
+        html += '</tr>';
+    });
 
     html += '</tbody></table>';
     document.getElementById('table-container').innerHTML = html;
 }
 
 // ============================================================
-// RENDER PRICING — düz sütunlar, hepsi düzenlenebilir
+// RENDER PRICING
 // ============================================================
 function renderPricing() {
+    if (!state.isAdmin) return;
     const data = [...state.pricing];
     const columns = [
         'Geçerlilik',
@@ -420,19 +454,15 @@ function renderPricing() {
     columns.forEach(col => html += `<th>${col}</th>`);
     html += '</tr></thead><tbody>';
 
-    if (data.length === 0) {
-        html += `<tr><td colspan="${columns.length}"><div class="empty-state"><div class="icon">💰</div><h3>Fiyatlandırma verisi yok</h3></div></td></tr>`;
-    } else {
-        data.forEach(p => {
-            html += '<tr>';
-            columns.forEach(col => {
-                const val = p[col] || '';
-                const colIndex = getColumnIndex(CONFIG.SHEETS.PRICING, col);
-                html += `<td class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex})">${escapeHtml(val)}</td>`;
-            });
-            html += '</tr>';
+    data.forEach(p => {
+        html += '<tr>';
+        columns.forEach(col => {
+            const val = p[col] || '';
+            const colIndex = getColumnIndex(CONFIG.SHEETS.PRICING, col);
+            html += `<td class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex})">${escapeHtml(val)}</td>`;
         });
-    }
+        html += '</tr>';
+    });
 
     html += '</tbody></table>';
     document.getElementById('table-container').innerHTML = html;
@@ -525,12 +555,12 @@ async function saveEdit(cell, sheetName, rowIndex, colIndex, newValue, fallbackH
 function getColumnIndex(sheetName, columnName) {
     const columnMaps = {
         [CONFIG.SHEETS.JOBS]: {
-            'Tarih': 1, 'Seri': 2, 'Bölüm': 3, 'Dosya': 4,
-            'Rol': 5, 'Ref KB': 6, 'Ücret (TL)': 7, 'Üye Adı': 8,
-            'Email': 9, 'Zorluk': 10
+            'ID': 1, 'Tarih': 2, 'Seri': 3, 'Bölüm': 4, 'Dosya': 5,
+            'Rol': 6, 'Ref KB': 7, 'Ücret (TL)': 8, 'Üye Adı': 9,
+            'Email': 10, 'Zorluk': 11
         },
         [CONFIG.SHEETS.MEMBERS]: {
-            'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6
+            'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6, 'Admin': 7
         },
         [CONFIG.SHEETS.SERIES]: {
             'ID': 1, 'Seri Adı': 2, 'Zorluk': 3
