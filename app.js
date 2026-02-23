@@ -225,7 +225,7 @@ function checkPermissions() {
     // UI Update: Hide Admin tabs if not admin
     const forbids = ['members', 'series', 'pricing'];
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        if (forbits.includes(btn.dataset.tab)) {
+        if (forbids.includes(btn.dataset.tab)) {
             btn.style.display = state.isAdmin ? '' : 'none';
         }
     });
