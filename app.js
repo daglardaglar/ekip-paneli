@@ -391,19 +391,19 @@ function renderJobs() {
 
                 if (col === 'Dosya') {
                     if (val && val.startsWith('http')) {
-                        html += `<td><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
+                        html += `<td data-label="${col}"><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
                     } else {
-                        html += `<td style="color:var(--text-muted);">—</td>`;
+                        html += `<td data-label="${col}" style="color:var(--text-muted);">—</td>`;
                     }
                 } else if (col === 'Rol') {
                     let cellVal = getRoleBadge(val);
                     if (isOnCamp) cellVal += ' <span class="role-badge kamp" style="font-size:0.6rem;padding:1px 4px;">KAMP</span>';
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${cellVal}</td>`;
+                    html += `<td data-label="${col}" class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${cellVal}</td>`;
                 } else if (col === 'Ücret (TL)') {
                     const displayAmt = isOnCamp ? '0' : parseFloat(val || 0).toFixed(0);
-                    html += `<td class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
+                    html += `<td data-label="${col}" class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
                 } else {
-                    html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
+                    html += `<td data-label="${col}" class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
                 }
             });
             html += '</tr>';
@@ -444,15 +444,18 @@ function renderMembers() {
         columns.forEach(col => {
             const val = member[col] || '';
             if (col === 'Rol') {
-                html += `<td>${getRoleBadge(val)}</td>`;
+                html += `<td data-label="${col}">${getRoleBadge(val)}</td>`;
             } else if (col === 'Kamp') {
                 const badge = val === 'Evet' ? '<span class="role-badge kamp">KAMP</span>' : '<span class="role-badge" style="opacity:0.3">HAYIR</span>';
-                html += `<td>${badge}</td>`;
+                html += `<td data-label="${col}">${badge}</td>`;
             } else if (col === 'Admin') {
                 const badge = val === 'Evet' ? '<span class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);">ADMİN</span>' : '<span class="role-badge" style="opacity:0.3">ÜYE</span>';
-                html += `<td>${badge}</td>`;
+                html += `<td data-label="${col}">${badge}</td>`;
+            } else if (col === 'Karaliste') {
+                const badge = val === 'Evet' ? '<span class="role-badge black">HAYIR</span>' : '<span class="role-badge" style="opacity:0.3">TEMİZ</span>';
+                html += `<td data-label="${col}">${badge}</td>`;
             } else {
-                html += `<td>${escapeHtml(val)}</td>`;
+                html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
             }
         });
         html += '</tr>';
@@ -492,9 +495,9 @@ function renderSeries() {
         columns.forEach(col => {
             let val = series[col] || '';
             if (col.includes('Link') && val.startsWith('http')) {
-                html += `<td><a href="${val}" target="_blank" class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);text-decoration:none;" onclick="event.stopPropagation()">DRİVE 🔗</a></td>`;
+                html += `<td data-label="${col}"><a href="${val}" target="_blank" class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);text-decoration:none;" onclick="event.stopPropagation()">DRİVE 🔗</a></td>`;
             } else {
-                html += `<td>${escapeHtml(val)}</td>`;
+                html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
             }
         });
         html += '</tr>';
@@ -530,7 +533,7 @@ function renderPricing() {
         columns.forEach(col => {
             const val = p[col] || '';
             const colIndex = getColumnIndex(CONFIG.SHEETS.PRICING, col);
-            html += `<td class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex}, '${col}')">${escapeHtml(val)}</td>`;
+            html += `<td data-label="${col}" class="editable" ondblclick="startEdit(this, '${CONFIG.SHEETS.PRICING}', ${p._rowIndex}, ${colIndex}, '${col}')">${escapeHtml(val)}</td>`;
         });
         html += '</tr>';
     });
