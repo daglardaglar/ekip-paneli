@@ -359,7 +359,8 @@ function renderJobs() {
     }
 
     const editableCols = ['Seri', 'Bölüm', 'Rol', 'Ref KB', 'Ücret (TL)', 'Üye Adı', 'Email', 'Zorluk'];
-    const columns = ['Tarih', 'Seri', 'Bölüm', 'Dosya', 'Rol', 'Ref KB', 'Ücret (TL)', 'Üye Adı', 'Email', 'Zorluk'];
+    const columns = ['Tarih', 'Seri', 'Bölüm', 'Rol', 'Ref KB', 'Ücret (TL)', 'Üye Adı', 'Email'];
+    if (state.isAdmin) columns.push('Aksiyon');
 
     renderToolbar(true);
 
@@ -407,6 +408,16 @@ function renderJobs() {
                     html += `<td data-label="${col}" class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
                 }
             });
+            if (state.isAdmin) {
+                html += `
+                <td style="text-align:center">
+                    <button class="btn-action secondary" 
+                            style="padding: 4px 8px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.2);"
+                            onclick="event.stopPropagation(); deleteJob(${job._rowIndex})">
+                        X
+                    </button>
+                </td>`;
+            }
             html += '</tr>';
         });
     }
@@ -725,7 +736,7 @@ function openAddJobModal() {
     document.getElementById('add-job-modal').classList.add('active');
 
     // Add real-time listeners for price calculation
-    ['add-job-kb', 'add-job-role', 'add-job-series'].forEach(id => {
+    ['add-job-kb', 'add-job-role', 'add-job-series', 'add-job-email'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.removeEventListener('input', updatePriceEstimate);
@@ -945,10 +956,6 @@ async function submitAddJob() {
             series,
             chapter,
             file,
-            role,
-            kb, // Ref KB
-            calculateJobPrice(role, kb, difficulty), // Ücret (calculated)
-            memberName,
             memberEmail,
             difficulty
         ];
@@ -1049,11 +1056,12 @@ function updatePriceEstimate() {
     const seriesName = document.getElementById('add-job-series').value;
     const role = document.getElementById('add-job-role').value;
     const kb = parseFloat(document.getElementById('add-job-kb').value || 0);
+    const email = document.getElementById('add-job-email').value.trim();
 
     const series = state.series.find(s => s['Seri Adı'] === seriesName);
     const difficulty = series ? series['Zorluk'] : 'ORTA';
 
-    const price = calculateJobPrice(role, kb, difficulty);
+    const price = calculateJobPrice(role, kb, difficulty, email);
 
     const estimateEl = document.getElementById('add-job-price-estimate');
     if (kb > 0 || role.includes('Temiz')) {
@@ -1064,10 +1072,10 @@ function updatePriceEstimate() {
     }
 }
 
-function calculateJobPrice(role, kb, difficulty = 'ORTA') {
+function calculateJobPrice(role, kb, difficulty = 'ORTA', targetEmail = null) {
     // Check if user is on camp (from state.members)
-    const currentUserEmail = (state.user?.email || '').toLowerCase();
-    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === currentUserEmail);
+    const emailToCheck = (targetEmail || state.user?.email || '').toLowerCase();
+    const member = state.members.find(m => (m['Email'] || '').toLowerCase() === emailToCheck);
     if (member && member['Kamp'] === 'Evet') return 0;
 
     // Get latest pricing from state
