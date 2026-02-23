@@ -474,22 +474,28 @@ function renderSeries() {
         data = data.filter(s => (s['Seri Adı'] || '').toLowerCase().includes(q));
     }
 
-    const columns = ['ID', 'Seri Adı', 'Zorluk'];
+    const columns = ['ID', 'Seri Adı', 'Zorluk', 'Çeviri Link', 'Dizgi Link', 'Temiz Link'];
     const editableCols = ['Seri Adı', 'Zorluk'];
 
     renderToolbar(false);
 
-    let html = '<table class="data-table"><thead><tr>';
+    let html = '<div style="margin-bottom:16px; display:flex; justify-content:flex-end;">';
+    html += '<button class="btn-action primary" onclick="openAddSeriesModal()" style="width:auto; padding: 8px 16px;">✨ Yeni Seri Ekle</button>';
+    html += '</div>';
+
+    html += '<table class="data-table"><thead><tr>';
     columns.forEach(col => html += `<th>${col}</th>`);
     html += '</tr></thead><tbody>';
 
-    data.forEach(series => {
-        html += '<tr>';
+    data.forEach((series, idx) => {
+        html += `<tr class="clickable" onclick="openEditSeriesModal(${series._rowIndex - 2})">`;
         columns.forEach(col => {
-            const val = series[col] || '';
-            const isEditable = editableCols.includes(col);
-            const colIndex = getColumnIndex(CONFIG.SHEETS.SERIES, col);
-            html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.SERIES}', ${series._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
+            let val = series[col] || '';
+            if (col.includes('Link') && val.startsWith('http')) {
+                html += `<td><a href="${val}" target="_blank" class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);text-decoration:none;" onclick="event.stopPropagation()">DRİVE 🔗</a></td>`;
+            } else {
+                html += `<td>${escapeHtml(val)}</td>`;
+            }
         });
         html += '</tr>';
     });
@@ -536,8 +542,20 @@ function renderPricing() {
 // ============================================================
 // TOOLBAR
 // ============================================================
-function renderToolbar(showRoleFilter) {
+function renderToolbar(showRoleFilter, force = false) {
     const toolbarEl = document.getElementById('toolbar');
+
+    // Search focus fix: If toolbar exists and we are just updating value
+    const existingSearch = document.getElementById('search-box');
+    if (existingSearch && !force) {
+        if (existingSearch.value !== (state.searchQuery || '')) {
+            existingSearch.value = state.searchQuery || '';
+        }
+        // If nothing else changed, don't re-render everything
+        if (toolbarEl.dataset.showRoleFilter === String(showRoleFilter)) return;
+    }
+
+    toolbarEl.dataset.showRoleFilter = showRoleFilter;
 
     let html = `
         <input type="text" class="search-box" id="search-box"
@@ -737,6 +755,94 @@ async function submitEditMember() {
     }
 }
 
+// ============================================================
+// SERIES LOGIC
+// ============================================================
+function openAddSeriesModal() {
+    document.getElementById('add-series-modal').classList.add('active');
+}
+
+function closeAddSeriesModal() {
+    document.getElementById('add-series-modal').classList.remove('active');
+}
+
+async function submitAddSeries() {
+    const name = document.getElementById('add-series-name').value.trim();
+    const difficulty = document.getElementById('add-series-difficulty').value;
+    const tr = document.getElementById('add-series-tr').value.trim();
+    const tp = document.getElementById('add-series-tp').value.trim();
+    const cl = document.getElementById('add-series-cl').value.trim();
+
+    if (!name) {
+        showToast('Lütfen seri adını girin!', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const rowData = [['NEW', name, difficulty, tr, tp, cl]];
+        const range = `'${CONFIG.SHEETS.SERIES}'!A2`;
+        await sheetsUpdate(range, rowData);
+
+        showToast('Seri eklendi! ✓', 'success');
+        closeAddSeriesModal();
+        await loadAllData();
+    } finally {
+        showLoading(false);
+    }
+}
+
+function openEditSeriesModal(idx) {
+    const series = state.series[idx];
+    if (!series) return;
+
+    document.getElementById('edit-series-index').value = idx;
+    document.getElementById('edit-series-name').value = series['Seri Adı'] || '';
+    document.getElementById('edit-series-difficulty').value = series['Zorluk'] || 'ORTA';
+    document.getElementById('edit-series-tr').value = series['Çeviri Link'] || '';
+    document.getElementById('edit-series-tp').value = series['Dizgi Link'] || '';
+    document.getElementById('edit-series-cl').value = series['Temiz Link'] || '';
+
+    document.getElementById('edit-series-modal').classList.add('active');
+}
+
+function closeEditSeriesModal() {
+    document.getElementById('edit-series-modal').classList.remove('active');
+}
+
+async function submitEditSeries() {
+    const idx = document.getElementById('edit-series-index').value;
+    const series = state.series[idx];
+    if (!series) return;
+
+    const updates = {
+        'Zorluk': document.getElementById('edit-series-difficulty').value,
+        'Çeviri Link': document.getElementById('edit-series-tr').value.trim(),
+        'Dizgi Link': document.getElementById('edit-series-tp').value.trim(),
+        'Temiz Link': document.getElementById('edit-series-cl').value.trim()
+    };
+
+    showLoading(true);
+    try {
+        const promises = [];
+        for (const [col, val] of Object.entries(updates)) {
+            const colIndex = getColumnIndex(CONFIG.SHEETS.SERIES, col);
+            const colLetter = String.fromCharCode(64 + colIndex);
+            const range = `'${CONFIG.SHEETS.SERIES}'!${colLetter}${series._rowIndex}`;
+            promises.push(sheetsUpdate(range, [[val]]));
+        }
+
+        await Promise.all(promises);
+        showToast('Seri güncellendi! ✓', 'success');
+        closeEditSeriesModal();
+        await loadAllData();
+    } catch (e) {
+        showToast('Güncelleme hatası: ' + e.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
 async function submitAddJob() {
     const series = document.getElementById('add-job-series').value;
     const chapter = document.getElementById('add-job-chapter').value;
@@ -803,7 +909,7 @@ function getColumnIndex(sheetName, columnName) {
             'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6, 'Admin': 7, 'Kamp': 8, 'Mezuniyet': 9
         },
         [CONFIG.SHEETS.SERIES]: {
-            'ID': 1, 'Seri Adı': 2, 'Zorluk': 3
+            'ID': 1, 'Seri Adı': 2, 'Zorluk': 3, 'Çeviri Link': 4, 'Dizgi Link': 5, 'Temiz Link': 6
         },
         [CONFIG.SHEETS.PRICING]: {
             'Geçerlilik': 1,

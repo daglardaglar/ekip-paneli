@@ -635,13 +635,27 @@ body::before {
     }
 
     .toolbar input,
-    .toolbar select {
+    .toolbar select,
+    .btn-action {
         width: 100%;
+        margin: 4px 0;
     }
 
     .table-container {
         margin: 0 -16px;
         width: calc(100% + 32px);
+        border-radius: 0;
+        box-shadow: inset 5px 0 10px -5px rgba(0, 0, 0, 0.1), inset -5px 0 10px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-card {
+        width: 95%;
+        margin: 10px;
+        padding: 16px;
     }
 }
 
@@ -672,7 +686,6 @@ body::before {
 .tabs {
     width: 100%;
     overflow-x: auto;
-}
 }
 
 @media (max-width: 480px) {

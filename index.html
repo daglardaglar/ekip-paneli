@@ -117,11 +117,103 @@
             </div>
 
             <!-- Edit Info -->
-            <div style="margin-top: 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-                💡 Bir hücreye çift tıklayarak düzenleyebilirsiniz. Enter ile kaydedin, Escape ile iptal edin.
+            <div
+                style="margin-top: 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 0 16px;">
+                💡 <b>İşler</b> sekmesinde hücreye çift tıklayarak; <b>Üyeler/Seriler</b> sekmesinde satıra tıklayarak
+                düzenleyebilirsiniz.
             </div>
 
         </main>
+    </div>
+
+    <!-- ===== ADD JOB MODAL ===== -->
+    <!-- ... existing add job modal ... -->
+
+    <!-- ===== MEMBER EDIT MODAL ===== -->
+    <!-- ... existing member edit modal ... -->
+
+    <!-- ===== ADD SERIES MODAL ===== -->
+    <div id="add-series-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Yeni Seri Ekle</h2>
+                <button class="btn-close" onclick="closeAddSeriesModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Seri Adı</label>
+                    <input type="text" id="add-series-name" placeholder="Örn: Solo Leveling">
+                </div>
+                <div class="form-group">
+                    <label>Zorluk</label>
+                    <select id="add-series-difficulty">
+                        <option value="EN_KOLAY">EN_KOLAY</option>
+                        <option value="KOLAY">KOLAY</option>
+                        <option value="ORTA" selected>ORTA</option>
+                        <option value="ZOR">ZOR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Çeviri Klasör Linki (Google Drive)</label>
+                    <input type="text" id="add-series-tr" placeholder="https://drive.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label>Dizgi Klasör Linki (Google Drive)</label>
+                    <input type="text" id="add-series-tp" placeholder="https://drive.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label>Temizlik Klasör Linki (Google Drive)</label>
+                    <input type="text" id="add-series-cl" placeholder="https://drive.google.com/...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action secondary" onclick="closeAddSeriesModal()">İptal</button>
+                <button class="btn-action primary" onclick="submitAddSeries()">Seriyi Oluştur</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== EDIT SERIES MODAL ===== -->
+    <div id="edit-series-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Seri Düzenle</h2>
+                <button class="btn-close" onclick="closeEditSeriesModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-series-index">
+                <div class="form-group">
+                    <label>Seri Adı</label>
+                    <input type="text" id="edit-series-name" readonly
+                        style="background:var(--bg-secondary);opacity:0.7;">
+                </div>
+                <div class="form-group">
+                    <label>Zorluk</label>
+                    <select id="edit-series-difficulty">
+                        <option value="EN_KOLAY">EN_KOLAY</option>
+                        <option value="KOLAY">KOLAY</option>
+                        <option value="ORTA">ORTA</option>
+                        <option value="ZOR">ZOR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Çeviri Klasör Linki (Google Drive)</label>
+                    <input type="text" id="edit-series-tr">
+                </div>
+                <div class="form-group">
+                    <label>Dizgi Klasör Linki (Google Drive)</label>
+                    <input type="text" id="edit-series-tp">
+                </div>
+                <div class="form-group">
+                    <label>Temizlik Klasör Linki (Google Drive)</label>
+                    <input type="text" id="edit-series-cl">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action secondary" onclick="closeEditSeriesModal()">İptal</button>
+                <button class="btn-action primary" onclick="submitEditSeries()">Değişiklikleri Kaydet</button>
+            </div>
+        </div>
     </div>
 
     <!-- ===== ADD JOB MODAL ===== -->
