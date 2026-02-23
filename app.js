@@ -9,13 +9,13 @@
 // ============================================================
 const CONFIG = {
     // Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client ID (Web)
-    CLIENT_ID: 'YOUR_CLIENT_ID_HERE.apps.googleusercontent.com',
+    CLIENT_ID: '1024428338409-pp684rcmi26pt1119uvgcc7g9nm49pau.apps.googleusercontent.com',
 
     // Google Sheets API Scope
     SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
 
     // Spreadsheet ID — sheets_sync.py tarafından oluşturulur
-    SPREADSHEET_ID: '',
+    SPREADSHEET_ID: '11zDw2n4rE8SYOUrQdhNdj7_Y2FkPUJNuCegz9kuXygk',
 
     // Sheet tab isimleri
     SHEETS: {
