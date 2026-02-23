@@ -618,45 +618,95 @@ body::before {
 @media (max-width: 768px) {
     .app-header {
         flex-direction: column;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: 8px;
+        padding: 12px;
+        text-align: center;
     }
 
     .main-content {
-        padding: 16px;
+        padding: 12px;
     }
 
     .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
     }
 
     .toolbar {
         flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
     }
 
     .toolbar input,
     .toolbar select,
     .btn-action {
         width: 100%;
-        margin: 4px 0;
+        margin: 0;
+        font-size: 0.9rem;
     }
 
     .table-container {
-        margin: 0 -16px;
-        width: calc(100% + 32px);
+        margin: 0 -12px;
+        width: calc(100% + 24px);
         border-radius: 0;
-        box-shadow: inset 5px 0 10px -5px rgba(0, 0, 0, 0.1), inset -5px 0 10px -5px rgba(0, 0, 0, 0.1);
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
     }
 
     .modal-card {
-        width: 95%;
-        margin: 10px;
-        padding: 16px;
+        width: 94%;
+        margin: 0 auto;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
     }
+
+    .modal-body {
+        padding: 16px;
+        overflow-y: auto;
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: 12px 16px;
+    }
+
+    .form-row {
+        flex-direction: column !important;
+        gap: 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-card {
+        padding: 12px;
+    }
+
+    .stat-card .value {
+        font-size: 1.25rem;
+    }
+
+    .tabs {
+        padding: 10px 0;
+    }
+
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Scrollbar styling for mobile tables */
+.table-container::-webkit-scrollbar {
+    height: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: var(--border-glass);
+    border-radius: 2px;
 }
 
 /* Modal form rows */

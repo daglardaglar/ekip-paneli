@@ -273,64 +273,65 @@
                     <label>Rol</label>
                     <input type="text" id="edit-member-role">
                 </div>
-                <div class="form-row" style="display: flex; gap: 16px;">
-                    <div class="form-group" style="flex: 1;">
+                <div class="form-row">
+                    <div class="form-group">
                         <label>Aktif</label>
                         <select id="edit-member-active">
                             <option value="Evet">Evet</option>
                             <option value="Hayır">Hayır</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Admin Yetkisi</label>
-                        <select id="edit-member-admin">
-                            <option value="Evet">Evet</option>
-                            <option value="Hayır">Hayır</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Admin Yetkisi</label>
+                            <select id="edit-member-admin">
+                                <option value="Evet">Evet</option>
+                                <option value="Hayır">Hayır</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Kamp Durumu</label>
+                            <select id="edit-member-camp">
+                                <option value="Evet">Evet</option>
+                                <option value="Hayır">Hayır</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Karaliste</label>
+                            <select id="edit-member-blacklist">
+                                <option value="Evet">Evet</option>
+                                <option value="Hayır">Hayır</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Mezuniyet Tarihi</label>
+                        <input type="date" id="edit-member-graduation">
                     </div>
                 </div>
-                <div class="form-row" style="display: flex; gap: 16px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Kamp Durumu</label>
-                        <select id="edit-member-camp">
-                            <option value="Evet">Evet</option>
-                            <option value="Hayır">Hayır</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Karaliste</label>
-                        <select id="edit-member-blacklist">
-                            <option value="Evet">Evet</option>
-                            <option value="Hayır">Hayır</option>
-                        </select>
-                    </div>
+                <div class="modal-footer">
+                    <button class="btn-action secondary" onclick="closeEditMemberModal()">İptal</button>
+                    <button class="btn-action primary" onclick="submitEditMember()">Kaydet</button>
                 </div>
-                <div class="form-group">
-                    <label>Mezuniyet Tarihi</label>
-                    <input type="date" id="edit-member-graduation">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-action secondary" onclick="closeEditMemberModal()">İptal</button>
-                <button class="btn-action primary" onclick="submitEditMember()">Kaydet</button>
             </div>
         </div>
-    </div>
 
-    <!-- App Script -->
-    <script src="app.js"></script>
-    <script>
-        // Google Identity Services yüklendiğinde uygulamayı başlat
-        window.addEventListener('load', () => {
-            // GIS kütüphanesi yüklenene kadar bekle
-            const checkGIS = setInterval(() => {
-                if (typeof google !== 'undefined' && google.accounts) {
-                    clearInterval(checkGIS);
-                    initApp();
-                }
-            }, 100);
-        });
-    </script>
+        <!-- App Script -->
+        <script src="app.js"></script>
+        <script>
+            // Google Identity Services yüklendiğinde uygulamayı başlat
+            window.addEventListener('load', () => {
+                // GIS kütüphanesi yüklenene kadar bekle
+                const checkGIS = setInterval(() => {
+                    if (typeof google !== 'undefined' && google.accounts) {
+                        clearInterval(checkGIS);
+                        initApp();
+                    }
+                }, 100);
+            });
+        </script>
 </body>
 
 </html>
