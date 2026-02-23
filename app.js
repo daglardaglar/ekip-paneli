@@ -1,5 +1,5 @@
 /**
- * Ödeme Takip - Ekip Paneli
+ * Ödeme Takip - Ekip Paneli v1.0.1
  * Google Sheets API ile veri okuma/düzenleme
  * Google Identity Services ile kimlik doğrulama
  */
@@ -58,9 +58,20 @@ function initApp() {
                 return;
             }
             state.accessToken = response.access_token;
+            // Token'ı kaydet (1 saat geçerli varsayıyoruz)
+            localStorage.setItem('google_access_token', state.accessToken);
+            localStorage.setItem('google_token_expiry', Date.now() + 3600000);
             onSignedIn();
         }
     });
+
+    // Otomatik giriş kontrolü
+    const savedToken = localStorage.getItem('google_access_token');
+    const expiry = localStorage.getItem('google_token_expiry');
+    if (savedToken && expiry && Date.now() < parseInt(expiry)) {
+        state.accessToken = savedToken;
+        onSignedIn();
+    }
 }
 
 function handleSignIn() {
@@ -72,6 +83,9 @@ function handleSignIn() {
 }
 
 function handleSignOut() {
+    localStorage.removeItem('google_access_token');
+    localStorage.removeItem('google_token_expiry');
+
     if (state.accessToken) {
         google.accounts.oauth2.revoke(state.accessToken, () => {
             state.accessToken = null;
@@ -80,6 +94,9 @@ function handleSignOut() {
             document.getElementById('login-screen').style.display = 'flex';
             document.getElementById('app-screen').style.display = 'none';
         });
+    } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('app-screen').style.display = 'none';
     }
 }
 
