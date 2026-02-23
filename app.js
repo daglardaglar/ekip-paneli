@@ -439,20 +439,20 @@ function renderMembers() {
     columns.forEach(col => html += `<th>${col}</th>`);
     html += '</tr></thead><tbody>';
 
-    data.forEach(member => {
-        html += '<tr>';
+    data.forEach((member, idx) => {
+        html += `<tr class="clickable" onclick="openEditMemberModal(${member._rowIndex - 2})">`;
         columns.forEach(col => {
             const val = member[col] || '';
-            const isEditable = editableCols.includes(col);
-            const colIndex = getColumnIndex(CONFIG.SHEETS.MEMBERS, col);
-
             if (col === 'Rol') {
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${getRoleBadge(val)}</td>`;
+                html += `<td>${getRoleBadge(val)}</td>`;
             } else if (col === 'Kamp') {
                 const badge = val === 'Evet' ? '<span class="role-badge kamp">KAMP</span>' : '<span class="role-badge" style="opacity:0.3">HAYIR</span>';
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${badge}</td>`;
+                html += `<td>${badge}</td>`;
+            } else if (col === 'Admin') {
+                const badge = val === 'Evet' ? '<span class="role-badge" style="background:rgba(79,140,255,0.1);color:var(--accent-blue);">ADMİN</span>' : '<span class="role-badge" style="opacity:0.3">ÜYE</span>';
+                html += `<td>${badge}</td>`;
             } else {
-                html += `<td class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.MEMBERS}', ${member._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
+                html += `<td>${escapeHtml(val)}</td>`;
             }
         });
         html += '</tr>';
@@ -678,6 +678,65 @@ function closeAddJobModal() {
     document.getElementById('add-job-modal').classList.remove('active');
 }
 
+// ============================================================
+// MEMBER EDIT MODAL LOGIC
+// ============================================================
+function openEditMemberModal(idx) {
+    const member = state.members[idx];
+    if (!member) return;
+
+    document.getElementById('edit-member-index').value = idx;
+    document.getElementById('edit-member-name').value = member['İsim'] || '';
+    document.getElementById('edit-member-role').value = member['Rol'] || '';
+    document.getElementById('edit-member-active').value = (member['Aktif'] === 'Evet') ? 'Evet' : 'Hayır';
+    document.getElementById('edit-member-admin').value = (member['Admin'] === 'Evet') ? 'Evet' : 'Hayır';
+    document.getElementById('edit-member-camp').value = (member['Kamp'] === 'Evet') ? 'Evet' : 'Hayır';
+    document.getElementById('edit-member-blacklist').value = (member['Karaliste'] === 'Evet') ? 'Evet' : 'Hayır';
+    document.getElementById('edit-member-graduation').value = member['Mezuniyet'] || '';
+
+    document.getElementById('edit-member-modal').classList.add('active');
+}
+
+function closeEditMemberModal() {
+    document.getElementById('edit-member-modal').classList.remove('active');
+}
+
+async function submitEditMember() {
+    const idx = document.getElementById('edit-member-index').value;
+    const member = state.members[idx];
+    if (!member) return;
+
+    const updates = {
+        'Rol': document.getElementById('edit-member-role').value,
+        'Aktif': document.getElementById('edit-member-active').value,
+        'Admin': document.getElementById('edit-member-admin').value,
+        'Kamp': document.getElementById('edit-member-camp').value,
+        'Karaliste': document.getElementById('edit-member-blacklist').value,
+        'Mezuniyet': document.getElementById('edit-member-graduation').value
+    };
+
+    showLoading(true);
+    try {
+        const promises = [];
+        for (const [col, val] of Object.entries(updates)) {
+            const colIndex = getColumnIndex(CONFIG.SHEETS.MEMBERS, col);
+            const colLetter = String.fromCharCode(64 + colIndex);
+            const range = `'${CONFIG.SHEETS.MEMBERS}'!${colLetter}${member._rowIndex}`;
+            promises.push(sheetsUpdate(range, [[val]]));
+        }
+
+        await Promise.all(promises);
+        showToast('Üye bilgileri güncellendi! ✓', 'success');
+        closeEditMemberModal();
+        await loadAllData();
+    } catch (e) {
+        showToast('Güncelleme hatası: ' + e.message, 'error');
+        console.error(e);
+    } finally {
+        showLoading(false);
+    }
+}
+
 async function submitAddJob() {
     const series = document.getElementById('add-job-series').value;
     const chapter = document.getElementById('add-job-chapter').value;
@@ -741,7 +800,7 @@ function getColumnIndex(sheetName, columnName) {
             'Email': 10, 'Zorluk': 11
         },
         [CONFIG.SHEETS.MEMBERS]: {
-            'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6, 'Admin': 7
+            'ID': 1, 'İsim': 2, 'Email': 3, 'Rol': 4, 'Aktif': 5, 'Karaliste': 6, 'Admin': 7, 'Kamp': 8, 'Mezuniyet': 9
         },
         [CONFIG.SHEETS.SERIES]: {
             'ID': 1, 'Seri Adı': 2, 'Zorluk': 3

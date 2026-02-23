@@ -163,6 +163,68 @@
         </div>
     </div>
 
+    <!-- ===== MEMBER EDIT MODAL ===== -->
+    <div id="edit-member-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Üye Düzenle</h2>
+                <button class="btn-close" onclick="closeEditMemberModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-member-index">
+                <div class="form-group">
+                    <label>İsim</label>
+                    <input type="text" id="edit-member-name" readonly
+                        style="background:var(--bg-secondary);opacity:0.7;">
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <input type="text" id="edit-member-role">
+                </div>
+                <div class="form-row" style="display: flex; gap: 16px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Aktif</label>
+                        <select id="edit-member-active">
+                            <option value="Evet">Evet</option>
+                            <option value="Hayır">Hayır</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Admin Yetkisi</label>
+                        <select id="edit-member-admin">
+                            <option value="Evet">Evet</option>
+                            <option value="Hayır">Hayır</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row" style="display: flex; gap: 16px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Kamp Durumu</label>
+                        <select id="edit-member-camp">
+                            <option value="Evet">Evet</option>
+                            <option value="Hayır">Hayır</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Karaliste</label>
+                        <select id="edit-member-blacklist">
+                            <option value="Evet">Evet</option>
+                            <option value="Hayır">Hayır</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Mezuniyet Tarihi</label>
+                    <input type="date" id="edit-member-graduation">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action secondary" onclick="closeEditMemberModal()">İptal</button>
+                <button class="btn-action primary" onclick="submitEditMember()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
     <!-- App Script -->
     <script src="app.js"></script>
     <script>

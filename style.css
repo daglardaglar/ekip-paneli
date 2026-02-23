@@ -640,13 +640,39 @@ body::before {
     }
 
     .table-container {
-        overflow-x: auto;
+        margin: 0 -16px;
+        width: calc(100% + 32px);
     }
+}
 
-    .tabs {
-        width: 100%;
-        overflow-x: auto;
-    }
+/* Modal form rows */
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.data-table tr.clickable:hover {
+    background: rgba(79, 140, 255, 0.05);
+    cursor: pointer;
+}
+
+.data-table tr.clickable:active {
+    background: rgba(79, 140, 255, 0.1);
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.tabs {
+    width: 100%;
+    overflow-x: auto;
+}
 }
 
 @media (max-width: 480px) {
