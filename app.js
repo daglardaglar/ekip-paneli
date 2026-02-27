@@ -957,19 +957,22 @@ async function submitAddJob() {
             }
         }
 
-        // Find difficulty from series
+        // Find difficulty and calculate price
         const s = state.series.find(x => x['Seri Adı'] === series);
         const difficulty = s ? s['Zorluk'] : 'ORTA';
+        const price = calculateJobPrice(role, kb, difficulty, memberEmail);
 
-        // Row format: ID(new), Tarih, Seri, Bölüm, Dosya, Rol, Ref KB, Ücret, Üye Adı, Email, Zorluk
-        // We leave ID empty or let Sheet generate? actually IDs are managed by the pull script.
-        // We can use 0 or something for "NEW" jobs to be assigned later by backend.
+        // Row format: ID, Tarih, Seri, Bölüm, Dosya, Rol, Ref KB, Ücret (TL), Üye Adı, Email, Zorluk
         const newRow = [
             'NEW',
             today,
             series,
             chapter,
             file,
+            role,
+            kb,
+            price,
+            memberName,
             memberEmail,
             difficulty
         ];
