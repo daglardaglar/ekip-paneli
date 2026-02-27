@@ -381,7 +381,7 @@ function renderJobs() {
                 html += `<tr><td colspan="${columns.length}" style="background:rgba(255,255,255,0.03);padding:12px 16px;font-weight:700;color:var(--accent-blue);border-left:4px solid var(--accent-blue);font-family:var(--font-heading);">📚 ${escapeHtml(currentSeries)}</td></tr>`;
                 lastSeries = currentSeries;
             }
-            html += '<tr>';
+            html += `<tr class="clickable" onclick="openEditJobModal(${job._rowIndex})">`;
             columns.forEach(col => {
                 const val = job[col] || '';
                 const isEditable = editableCols.includes(col);
@@ -393,19 +393,19 @@ function renderJobs() {
 
                 if (col === 'Dosya') {
                     if (val && val.startsWith('http')) {
-                        html += `<td data-label="${col}"><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;">📄 DOSYA</a></td>`;
+                        html += `<td data-label="${col}"><a href="${val}" target="_blank" style="color:var(--accent-blue);font-weight:600;text-decoration:none;" onclick="event.stopPropagation()">📄 DOSYA</a></td>`;
                     } else {
                         html += `<td data-label="${col}" style="color:var(--text-muted);">—</td>`;
                     }
                 } else if (col === 'Rol') {
                     let cellVal = getRoleBadge(val);
                     if (isOnCamp) cellVal += ' <span class="role-badge kamp" style="font-size:0.6rem;padding:1px 4px;">KAMP</span>';
-                    html += `<td data-label="${col}" class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${cellVal}</td>`;
+                    html += `<td data-label="${col}">${cellVal}</td>`;
                 } else if (col === 'Ücret (TL)') {
                     const displayAmt = isOnCamp ? '0' : parseFloat(val || 0).toFixed(0);
-                    html += `<td data-label="${col}" class="amount ${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''} style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
+                    html += `<td data-label="${col}" class="amount" style="${isOnCamp ? 'color:var(--accent-red);opacity:0.6;' : ''}">${displayAmt} TL</td>`;
                 } else {
-                    html += `<td data-label="${col}" class="${isEditable ? 'editable' : ''}" ${isEditable ? `ondblclick="startEdit(this, '${CONFIG.SHEETS.JOBS}', ${job._rowIndex}, ${colIndex}, '${col}')"` : ''}>${escapeHtml(val)}</td>`;
+                    html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
                 }
             });
             if (state.isAdmin) {
@@ -984,6 +984,115 @@ async function submitAddJob() {
         await loadAllData();
     } catch (e) {
         showToast('Ekleme hatası: ' + e.message, 'error');
+        console.error(e);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
+// JOB EDIT MODAL LOGIC
+// ============================================================
+function openEditJobModal(idx) {
+    const job = state.jobs.find(j => j._rowIndex === idx);
+    if (!job) return;
+
+    document.getElementById('edit-job-index').value = idx;
+
+    // Fill Series select
+    const seriesSelect = document.getElementById('edit-job-series');
+    seriesSelect.innerHTML = state.series.map(s =>
+        `<option value="${s['Seri Adı']}" ${s['Seri Adı'] === job['Seri'] ? 'selected' : ''}>${s['Seri Adı']}</option>`
+    ).join('');
+
+    document.getElementById('edit-job-chapter').value = job['Bölüm'] || '';
+    document.getElementById('edit-job-kb').value = job['Ref KB'] || 0;
+    document.getElementById('edit-job-role').value = job['Rol'] || 'Çevirmen';
+    document.getElementById('edit-job-file').value = (job['Dosya'] || '').startsWith('http') ? job['Dosya'] : '';
+    document.getElementById('edit-job-price').value = job['Ücret (TL)'] || 0;
+
+    if (state.isAdmin) {
+        document.getElementById('edit-job-email-group').style.display = 'block';
+        document.getElementById('edit-job-email').value = job['Email'] || '';
+    } else {
+        document.getElementById('edit-job-email-group').style.display = 'none';
+    }
+
+    document.getElementById('edit-job-modal').classList.add('active');
+    updateEditPriceEstimate();
+}
+
+function closeEditJobModal() {
+    document.getElementById('edit-job-modal').classList.remove('active');
+}
+
+function updateEditPriceEstimate() {
+    const role = document.getElementById('edit-job-role').value;
+    const kb = parseFloat(document.getElementById('edit-job-kb').value || 0);
+    const seriesName = document.getElementById('edit-job-series').value;
+    const email = state.isAdmin ? document.getElementById('edit-job-email').value : state.user.email;
+
+    const s = state.series.find(x => x['Seri Adı'] === seriesName);
+    const difficulty = s ? s['Zorluk'] : 'ORTA';
+
+    const price = calculateJobPrice(role, kb, difficulty, email);
+    document.getElementById('edit-job-price').value = price;
+}
+
+async function submitEditJob() {
+    const idx = document.getElementById('edit-job-index').value;
+    const job = state.jobs.find(j => j._rowIndex === parseInt(idx));
+    if (!job) return;
+
+    const seriesName = document.getElementById('edit-job-series').value;
+    const chapter = document.getElementById('edit-job-chapter').value.trim();
+    const role = document.getElementById('edit-job-role').value;
+    const kb = parseFloat(document.getElementById('edit-job-kb').value || 0);
+    const file = document.getElementById('edit-job-file').value.trim();
+    const price = document.getElementById('edit-job-price').value;
+    const email = state.isAdmin ? document.getElementById('edit-job-email').value.trim() : job['Email'];
+
+    if (!seriesName || !chapter) {
+        showToast('Lütfen seri ve bölüm alanlarını doldurun!', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const s = state.series.find(x => x['Seri Adı'] === seriesName);
+        const difficulty = s ? s['Zorluk'] : 'ORTA';
+
+        const updates = {
+            'Seri': seriesName,
+            'Bölüm': chapter,
+            'Rol': role,
+            'Ref KB': kb,
+            'Dosya': file,
+            'Ücret (TL)': price,
+            'Zorluk': difficulty
+        };
+
+        if (state.isAdmin) {
+            updates['Email'] = email;
+            // Üye adını da güncelle (Veya SQL tarafına bırak)
+            const m = state.members.find(m => (m['Email'] || '').toLowerCase() === email.toLowerCase());
+            if (m) updates['Üye Adı'] = m['İsim'];
+        }
+
+        const promises = [];
+        for (const [col, val] of Object.entries(updates)) {
+            const colIndex = getColumnIndex(CONFIG.SHEETS.JOBS, col);
+            const colLetter = String.fromCharCode(64 + colIndex);
+            const range = `'${CONFIG.SHEETS.JOBS}'!${colLetter}${job._rowIndex}`;
+            promises.push(sheetsUpdate(range, [[val]]));
+        }
+
+        await Promise.all(promises);
+        showToast('İş başarıyla güncellendi! ✓', 'success');
+        closeEditJobModal();
+        await loadAllData();
+    } catch (e) {
+        showToast('Güncelleme hatası: ' + e.message, 'error');
         console.error(e);
     } finally {
         showLoading(false);

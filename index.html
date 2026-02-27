@@ -305,6 +305,70 @@
         </div>
     </div>
 
+    <!-- ===== EDIT JOB MODAL ===== -->
+    <div id="edit-job-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 id="edit-job-title">İş Düzenle</h2>
+                <button class="btn-close" onclick="closeEditJobModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-job-index">
+                <div class="form-group">
+                    <label>Seri</label>
+                    <select id="edit-job-series" onchange="updateEditPriceEstimate()"></select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Bölüm</label>
+                        <input type="text" id="edit-job-chapter">
+                    </div>
+                    <div class="form-group">
+                        <label>Referans KB</label>
+                        <input type="number" id="edit-job-kb" step="0.01" oninput="updateEditPriceEstimate()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="edit-job-role" onchange="updateEditPriceEstimate()">
+                        <option value="Çevirmen">Çevirmen</option>
+                        <option value="Acemi Çevirmen">Acemi Çevirmen</option>
+                        <option value="Dizgici">Dizgici</option>
+                        <option value="Acemi Dizgici">Acemi Dizgici</option>
+                        <option value="Temizlikçi">Temizlikçi</option>
+                        <option value="Redaktör">Redaktör</option>
+                        <option value="Editör">Editör</option>
+                        <option value="Acemi">Acemi</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Dosya / Drive Linki</label>
+                    <input type="text" id="edit-job-file">
+                </div>
+                <div class="form-group" id="edit-job-email-group" style="display: none;">
+                    <label>Üye Email (Admin)</label>
+                    <input type="text" id="edit-job-email" list="member-emails-list">
+                </div>
+
+                <div id="edit-job-price-display"
+                    style="margin-top: 15px; padding: 15px; background: rgba(79,140,255,0.05); border-radius: var(--radius-md); border: 1px solid var(--border-glass); text-align: center;">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px;">Hesaplanan Ücret</div>
+                    <div class="form-row" style="align-items: center; justify-content: center; gap: 10px;">
+                        <input type="number" id="edit-job-price"
+                            style="width: 100px; text-align: center; font-size: 1.2rem; font-weight: 800; color: var(--accent-blue); background: transparent; border: 1px solid var(--border-glass); border-radius: var(--radius-sm);">
+                        <span style="font-size: 1.2rem; font-weight: 800; color: var(--accent-blue);">TL</span>
+                    </div>
+                    <small style="display: block; margin-top: 5px; color: var(--text-muted); font-size: 0.7rem;">Değer
+                        değiştikçe otomatik hesaplanır, isterseniz manuel düzeltebilirsiniz.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action secondary" onclick="closeEditJobModal()">İptal</button>
+                <button class="btn-action primary" onclick="submitEditJob()">Değişiklikleri Kaydet</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== MEMBER EDIT MODAL ===== -->
     <div id="edit-member-modal" class="modal-overlay">
         <div class="modal-card">
