@@ -1,31 +1,32 @@
 /* ===== DESIGN SYSTEM ===== */
 :root {
-    --bg-primary: #0f0f1a;
-    --bg-secondary: #1a1a2e;
-    --bg-card: rgba(30, 30, 60, 0.7);
-    --bg-card-hover: rgba(40, 40, 80, 0.8);
-    --bg-glass: rgba(255, 255, 255, 0.04);
+    --bg-primary: #0f111a;
+    --bg-secondary: #1a1d2b;
+    --bg-card: rgba(26, 29, 43, 0.8);
+    --bg-card-hover: rgba(32, 36, 54, 0.9);
+    --bg-glass: rgba(255, 255, 255, 0.03);
     --border-glass: rgba(255, 255, 255, 0.08);
-    --text-primary: #e8e8f0;
-    --text-secondary: #9898b0;
-    --text-muted: #6868a0;
-    --accent-blue: #4f8cff;
-    --accent-purple: #a855f7;
-    --accent-green: #10b981;
-    --accent-red: #ef4444;
-    --accent-yellow: #f59e0b;
-    --accent-cyan: #06b6d4;
-    --gradient-primary: linear-gradient(135deg, #4f8cff 0%, #a855f7 100%);
-    --gradient-success: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-    --gradient-warm: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-    --shadow-glow: 0 0 30px rgba(79, 140, 255, 0.15);
-    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+    --text-primary: #f8f9fa;
+    --text-secondary: #a0a0b0;
+    --text-muted: #707080;
+    --accent-blue: #7c4dff;
+    --accent-purple: #651fff;
+    --accent-green: #00e676;
+    --accent-red: #ff5252;
+    --accent-yellow: #ffd600;
+    --accent-cyan: #00d4ff;
+    --gradient-primary: linear-gradient(135deg, #7c4dff 0%, #00d4ff 100%);
+    --gradient-success: linear-gradient(135deg, #00e676 0%, #00d4ff 100%);
+    --gradient-warm: linear-gradient(135deg, #ffd600 0%, #ff5252 100%);
+    --shadow-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Outfit', sans-serif;
+    --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -40,20 +41,14 @@ body {
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
+    background-image:
+        radial-gradient(circle at 20% 20%, rgba(124, 77, 255, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 40%);
+    background-attachment: fixed;
 }
 
 body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background:
-        radial-gradient(ellipse at 20% 20%, rgba(79, 140, 255, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: 0;
+    display: none;
 }
 
 /* ===== LOGIN SCREEN ===== */
@@ -85,7 +80,8 @@ body::before {
 }
 
 .login-card h1 {
-    font-size: 1.5rem;
+    font-family: var(--font-heading);
+    font-size: 2rem;
     font-weight: 700;
     margin-bottom: 4px;
     background: var(--gradient-primary);
@@ -154,7 +150,8 @@ body::before {
 }
 
 .header-left h1 {
-    font-size: 1.2rem;
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
     font-weight: 700;
     background: var(--gradient-primary);
     -webkit-background-clip: text;
@@ -223,20 +220,22 @@ body::before {
 
 .stat-card {
     background: var(--bg-card);
-    backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-glass);
-    border-radius: var(--radius-md);
-    padding: 20px;
+    border-radius: var(--radius-lg);
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
     transition: var(--transition);
+    box-shadow: var(--shadow-card);
 }
 
 .stat-card:hover {
     background: var(--bg-card-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-glow);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 .stat-card .label {
@@ -248,7 +247,8 @@ body::before {
 }
 
 .stat-card .value {
-    font-size: 1.6rem;
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
     font-weight: 800;
 }
 
@@ -380,12 +380,12 @@ body::before {
 }
 
 .data-table thead th {
-    background: rgba(79, 140, 255, 0.08);
-    padding: 14px 16px;
-    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 16px;
+    font-size: 0.8rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
     font-weight: 700;
     text-align: left;
     border-bottom: 1px solid var(--border-glass);
@@ -394,6 +394,8 @@ body::before {
     top: 0;
     cursor: pointer;
     user-select: none;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .data-table thead th:hover {
@@ -512,6 +514,7 @@ body::before {
 
 /* Amount display */
 .amount {
+    font-family: var(--font-heading);
     font-weight: 700;
     color: var(--accent-green);
 }

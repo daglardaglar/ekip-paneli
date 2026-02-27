@@ -378,7 +378,7 @@ function renderJobs() {
         data.forEach(job => {
             const currentSeries = job['Seri'] || '';
             if (currentSeries !== lastSeries && currentSeries && state.isAdmin) {
-                html += `<tr><td colspan="${columns.length}" style="background:rgba(79,140,255,0.08);padding:8px 16px;font-weight:700;color:var(--accent-blue);border-left:3px solid var(--accent-blue);">📚 ${escapeHtml(currentSeries)}</td></tr>`;
+                html += `<tr><td colspan="${columns.length}" style="background:rgba(255,255,255,0.03);padding:12px 16px;font-weight:700;color:var(--accent-blue);border-left:4px solid var(--accent-blue);font-family:var(--font-heading);">📚 ${escapeHtml(currentSeries)}</td></tr>`;
                 lastSeries = currentSeries;
             }
             html += '<tr>';
