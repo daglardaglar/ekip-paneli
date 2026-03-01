@@ -835,6 +835,11 @@ body::before {
     background: rgba(79, 140, 255, 0.1);
 }
 
+.data-table td[onclick]:hover {
+    background: rgba(16, 185, 129, 0.15) !important;
+    text-decoration: underline;
+}
+
 .table-container {
     overflow-x: auto;
 }

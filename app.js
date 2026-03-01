@@ -476,11 +476,11 @@ function renderMembers() {
                     .filter(j => (j['Email'] || '').toLowerCase() === email)
                     .reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
 
-                // Stop propagation so clicking the earnings doesn't open the "Edit Member" modal
                 html += `
                     <td data-label="${col}" 
                         onclick="event.stopPropagation(); viewMemberJobs('${email}', '${escapeHtml(member['İsim'] || '')}')"
-                        style="font-weight:800; color:var(--accent-green); cursor:pointer; text-decoration:underline;">
+                        title="İş geçmişini görüntüle"
+                        style="font-weight:800; color:var(--accent-green); cursor:pointer; text-decoration:underline; background: rgba(16,185,129,0.05);">
                         ${Math.round(total)} TL
                     </td>`;
             } else {
@@ -500,18 +500,29 @@ function renderMembers() {
 function viewMemberJobs(email, name) {
     const jobs = state.jobs.filter(j => (j['Email'] || '').toLowerCase() === email.toLowerCase());
     const tbody = document.getElementById('member-jobs-table-body');
+    const tfoot = document.getElementById('member-jobs-table-footer');
+    const summary = document.getElementById('member-jobs-total-summary');
     const title = document.getElementById('member-jobs-title');
     const subtitle = document.getElementById('member-jobs-subtitle');
 
     title.textContent = `${name} - İş Geçmişi`;
     subtitle.textContent = `${email} | Toplam ${jobs.length} iş`;
 
+    let totalSum = 0;
     let html = '';
+
     if (jobs.length === 0) {
         html = '<tr><td colspan="6" style="text-align:center; padding:40px;">Bu üyeye ait henüz bir iş kaydı bulunamadı.</td></tr>';
+        tfoot.innerHTML = '';
+        summary.textContent = '';
     } else {
         // Sort by date descending
-        [...jobs].sort((a, b) => new Date(b['Tarih'] || 0) - new Date(a['Tarih'] || 0)).forEach(job => {
+        const sortedJobs = [...jobs].sort((a, b) => new Date(b['Tarih'] || 0) - new Date(a['Tarih'] || 0));
+
+        sortedJobs.forEach(job => {
+            const amount = parseFloat(job['Ücret (TL)'] || 0);
+            totalSum += amount;
+
             html += `
                 <tr>
                     <td data-label="Tarih">${job['Tarih'] || ''}</td>
@@ -519,10 +530,18 @@ function viewMemberJobs(email, name) {
                     <td data-label="Bölüm">${job['Bölüm'] || ''}</td>
                     <td data-label="Rol">${getRoleBadge(job['Rol'] || '')}</td>
                     <td data-label="KB">${job['Size (KB/Bölüm)'] || '0'}</td>
-                    <td data-label="Ücret" style="font-weight:700; color:var(--accent-green);">${Math.round(job['Ücret (TL)'] || 0)} TL</td>
+                    <td data-label="Ücret" style="font-weight:700; color:var(--accent-green);">${Math.round(amount)} TL</td>
                 </tr>
             `;
         });
+
+        tfoot.innerHTML = `
+            <tr style="background: rgba(16,185,129,0.1); font-weight: 800;">
+                <td colspan="5" style="text-align: right;">GENEL TOPLAM:</td>
+                <td style="color: var(--accent-green);">${Math.round(totalSum)} TL</td>
+            </tr>
+        `;
+        summary.textContent = `Toplam: ${Math.round(totalSum)} TL`;
     }
 
     tbody.innerHTML = html;

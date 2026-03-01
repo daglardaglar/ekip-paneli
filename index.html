@@ -457,20 +457,27 @@
                                     <tbody id="member-jobs-table-body">
                                         <!-- Jobs will be listed here -->
                                     </tbody>
+                                    <tfoot id="member-jobs-table-footer">
+                                        <!-- Total will be here -->
+                                    </tfoot>
                                 </table>
                             </div>
                         </div>
                         <div class="modal-footer">
+                            <div id="member-jobs-total-summary"
+                                style="margin-right: auto; font-weight: 700; color: var(--accent-green); font-size: 1.1rem;">
+                            </div>
                             <button class="btn-action primary" onclick="closeMemberJobsModal()">Kapat</button>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- App Script -->
-            <datalist id="member-emails-list"></datalist>
+        <!-- App Script -->
+        <datalist id="member-emails-list"></datalist>
 
-            <script src="app.js"></script>
+        <script src="app.js"></script>
 </body>
 <script>
     // Google Identity Services yüklendiğinde uygulamayı başlat
