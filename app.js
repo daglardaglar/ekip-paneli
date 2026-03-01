@@ -1338,16 +1338,22 @@ async function deleteJob(rowIndex) {
 // HTML UPLOAD & SYNC LOGIC
 // ============================================================
 async function handleHTMLUpload(event) {
+    showToast('Dosya okunuyor...', 'info');
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+        showToast('Dosya seçilmedi!', 'error');
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (e) => {
         const content = e.target.result;
-        // Extract RAW_DATA using regex
-        const match = content.match(/const RAW_DATA = (\{.*?\});/s);
+        // Extract RAW_DATA using a more robust regex
+        const match = content.match(/(?:const|var|let)\s+RAW_DATA\s*=\s*(\{[\s\S]*?\});/);
+
         if (!match) {
-            showToast('Geçerli bir RAW_DATA bulunamadı!', 'error');
+            console.error('RAW_DATA pattern not found in file content');
+            showToast('HATA: Dosya içinde RAW_DATA bloğu bulunamadı!', 'error');
             return;
         }
 
@@ -1478,3 +1484,6 @@ async function autoUpdateRelatedJobs(uploadedFiles) {
         showToast('KB senkronizasyonu tamamlandı. ✓', 'success');
     }
 }
+
+// Global scope expose for event handlers
+window.handleHTMLUpload = handleHTMLUpload;
