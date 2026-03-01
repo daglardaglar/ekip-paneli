@@ -220,13 +220,18 @@ function parseSheetData(rawValues) {
     if (!rawValues || rawValues.length < 1) return [];
     const headers = rawValues[0];
     const rows = rawValues.slice(1);
-    return rows.map((row, idx) => {
-        const obj = { _rowIndex: idx + 2 };
-        headers.forEach((h, i) => {
-            obj[h] = row[i] || '';
-        });
-        return obj;
-    });
+    return rows
+        .map((row, idx) => {
+            const obj = { _rowIndex: idx + 2 };
+            let hasData = false;
+            headers.forEach((h, i) => {
+                const val = row[i] || '';
+                obj[h] = val;
+                if (val && i < 10) hasData = true; // Check first 10 columns for any data
+            });
+            return hasData ? obj : null;
+        })
+        .filter(obj => obj !== null);
 }
 
 function checkPermissions() {
@@ -1427,21 +1432,47 @@ async function syncUploadedData(uploadedData) {
         const start = uploadedData.start_date;
         const end = uploadedData.end_date;
 
+        console.log(`Syncing for ${email}, range: ${start} to ${end}`);
+
+        // Helper to normalize date strings to YYYY-MM-DD for comparison
+        const normalizeDate = (d) => {
+            if (!d) return "";
+            // If already YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+            // If DD/MM/YYYY or DD.MM.YYYY
+            const parts = d.split(/[./-]/);
+            if (parts.length === 3) {
+                if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+            return d;
+        };
+
+        const nStart = normalizeDate(start);
+        const nEnd = normalizeDate(end);
+
         // 1. Find and clear existing jobs for this user in this range
-        const jobsToClear = state.jobs.filter(j =>
-            (j['Email'] || '').toLowerCase() === email &&
-            (j['Tarih'] || '') >= start &&
-            (j['Tarih'] || '') <= end
-        );
+        const jobsToClear = state.jobs.filter(j => {
+            const jEmail = (j['Email'] || '').toLowerCase();
+            const jDate = normalizeDate(j['Tarih'] || '');
+
+            const match = jEmail === email && jDate >= nStart && jDate <= nEnd;
+            if (match) console.log(`Found job to clear: row ${j._rowIndex}, date ${jDate}`);
+            return match;
+        });
 
         if (jobsToClear.length > 0) {
             showToast(`${jobsToClear.length} eski iş temizleniyor...`, 'info');
+            // Group by row to avoid unnecessary calls? Or just promise all
             const promises = jobsToClear.map(j => {
                 const range = `'${CONFIG.SHEETS.JOBS}'!A${j._rowIndex}:K${j._rowIndex}`;
                 const emptyRow = new Array(11).fill('');
                 return sheetsUpdate(range, [emptyRow]);
             });
             await Promise.all(promises);
+            console.log(`Cleared ${jobsToClear.length} rows.`);
+        } else {
+            console.log("No jobs found to clear in this range.");
         }
 
         // 2. Prepare new rows
@@ -1459,9 +1490,10 @@ async function syncUploadedData(uploadedData) {
             f.difficulty || 'ORTA'
         ]);
 
-        // 3. Append new jobs
+        // 3. Append new jobs (at least one row to avoid error)
         if (newRows.length > 0) {
             await sheetsAppend(`'${CONFIG.SHEETS.JOBS}'!A2`, newRows);
+            console.log(`Appended ${newRows.length} new rows.`);
         }
 
         showToast(`${newRows.length} iş başarıyla aktarıldı. ✨`, 'success');
