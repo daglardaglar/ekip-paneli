@@ -1484,12 +1484,21 @@ async function syncUploadedData(uploadedData) {
         };
 
         // 1. Find and clear existing jobs for this user in this range
+        // USER REQUEST: Ignore dates, match only by Email and the specific files being uploaded
+        const uploadedFileKeys = new Set(uploadedData.files.map(f => `${(f.series || '').trim().toLowerCase()}|${(f.file_name || '').trim().toLowerCase()}`));
+
+        console.log('Target files to clear from DB (Series|Episode):', Array.from(uploadedFileKeys));
+
         const jobsToClear = state.jobs.filter(j => {
             const jEmail = (getVal(j, 'Email') || '').toLowerCase();
-            const jDate = normalizeDate(getVal(j, 'Tarih') || '');
+            if (jEmail !== email) return false;
 
-            const match = jEmail === email && jDate >= nStart && jDate <= nEnd;
-            if (match) console.log(`Found job to clear: row ${j._rowIndex}, date ${jDate}`);
+            const jSeries = (getVal(j, 'Seri') || '').trim().toLowerCase();
+            const jEpisode = (getVal(j, 'Bölüm') || '').trim().toLowerCase();
+            const jKey = `${jSeries}|${jEpisode}`;
+
+            const match = uploadedFileKeys.has(jKey);
+            if (match) console.log(`Found job to clear: row ${j._rowIndex}, key: ${jKey}`);
             return match;
         });
 
@@ -1503,8 +1512,8 @@ async function syncUploadedData(uploadedData) {
             await Promise.all(promises);
             console.log(`Cleared ${jobsToClear.length} rows.`);
         } else {
-            console.log("No jobs found to clear in this range.");
-            showToast('Eski iş bulunamadı veya tarih aralığı eşleşmedi.', 'info');
+            console.log("No matching jobs found to clear.");
+            showToast('Eski iş bulunamadı (Email ve Seri/Bölüm eşleşmedi).', 'info');
         }
 
         // 2. Prepare new rows
