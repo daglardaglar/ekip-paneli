@@ -1485,7 +1485,11 @@ async function syncUploadedData(uploadedData) {
 
         // 1. Find and clear existing jobs for this user in this range
         // USER REQUEST: Ignore dates, match only by Email and the specific files being uploaded
-        const uploadedFileKeys = new Set(uploadedData.files.map(f => `${(f.series || '').trim().toLowerCase()}|${(f.file_name || '').trim().toLowerCase()}`));
+        const uploadedFileKeys = new Set(uploadedData.files.map(f => {
+            const s = String(f.series || '').trim().toLowerCase();
+            const e = String(f.file_name || '').trim().toLowerCase();
+            return `${s}|${e}`;
+        }));
 
         console.log('Target files to clear from DB (Series|Episode):', Array.from(uploadedFileKeys));
 
@@ -1493,8 +1497,8 @@ async function syncUploadedData(uploadedData) {
             const jEmail = (getVal(j, 'Email') || '').toLowerCase();
             if (jEmail !== email) return false;
 
-            const jSeries = (getVal(j, 'Seri') || '').trim().toLowerCase();
-            const jEpisode = (getVal(j, 'Bölüm') || '').trim().toLowerCase();
+            const jSeries = String(getVal(j, 'Seri') || '').trim().toLowerCase();
+            const jEpisode = String(getVal(j, 'Bölüm') || '').trim().toLowerCase();
             const jKey = `${jSeries}|${jEpisode}`;
 
             const match = uploadedFileKeys.has(jKey);
