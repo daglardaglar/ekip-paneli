@@ -411,8 +411,7 @@ function renderJobs() {
             if (state.isAdmin) {
                 html += `
                 <td style="text-align:center">
-                    <button class="btn-action secondary" 
-                            style="padding: 4px 8px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.2);"
+                    <button class="btn-delete" 
                             onclick="event.stopPropagation(); deleteJob(${job._rowIndex})">
                         X
                     </button>
