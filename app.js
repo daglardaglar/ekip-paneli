@@ -135,49 +135,86 @@ async function onSignedIn() {
 // ============================================================
 async function sheetsGet(range) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueRenderOption=FORMULA`;
-    const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${state.accessToken}` }
-    });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Sheets API hatası');
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+        });
+        if (res.status === 401) return handleAuthError();
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error?.message || 'Sheets API hatası');
+        }
+        const data = await res.json();
+        return data.values || [];
+    } catch (e) {
+        if (e.message === 'AUTH_RETRY') throw e;
+        throw e;
     }
-    const data = await res.json();
-    return data.values || [];
 }
 
 async function sheetsUpdate(range, values) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
-    const res = await fetch(url, {
-        method: 'PUT',
-        headers: {
-            Authorization: `Bearer ${state.accessToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ values })
-    });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Güncelleme hatası');
+    try {
+        const res = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                Authorization: `Bearer ${state.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ values })
+        });
+        if (res.status === 401) return handleAuthError();
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error?.message || 'Güncelleme hatası');
+        }
+        return await res.json();
+    } catch (e) {
+        if (e.message === 'AUTH_RETRY') throw e;
+        throw e;
     }
-    return await res.json();
 }
 
 async function sheetsAppend(range, values) {
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${state.accessToken}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ values })
-    });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || 'Ekleme hatası');
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${state.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ values })
+        });
+        if (res.status === 401) return handleAuthError();
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error?.message || 'Ekleme hatası');
+        }
+        return await res.json();
+    } catch (e) {
+        if (e.message === 'AUTH_RETRY') throw e;
+        throw e;
     }
-    return await res.json();
+}
+
+function handleAuthError() {
+    console.warn('Authentication expired, redirecting to login...');
+    localStorage.removeItem('google_access_token');
+    localStorage.removeItem('google_token_expiry');
+    state.accessToken = null;
+
+    showToast('Oturum süresi doldu, lütfen tekrar giriş yapın.', 'info');
+
+    // Uygulamayı giriş ekranına döndür
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display = 'none';
+
+    // Otomatik olarak giriş penceresini aç
+    handleSignIn();
+
+    // İşlemi durdurmak için hata fırlat
+    throw new Error('AUTH_RETRY');
 }
 
 async function loadAllData() {
@@ -446,7 +483,7 @@ function renderMembers() {
         );
     }
 
-    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Toplam Kazanç'];
+    const columns = ['ID', 'İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet', 'Toplam Kazanç'];
     const editableCols = ['İsim', 'Email', 'Rol', 'Aktif', 'Karaliste', 'Admin', 'Kamp', 'Mezuniyet'];
 
     renderToolbar(false);
@@ -1032,7 +1069,7 @@ async function submitAddJob() {
         // Find difficulty and calculate price
         const s = state.series.find(x => x['Seri Adı'] === series);
         const difficulty = s ? s['Zorluk'] : 'ORTA';
-        const price = calculateJobPrice(role, kb, difficulty, memberEmail);
+        const price = calculateJobPrice(role, kb, difficulty, memberEmail, today);
 
         // Row format: ID, Tarih, Seri, Bölüm, Dosya, Rol, Ref KB, Ücret (TL), Üye Adı, Email, Zorluk
         const newRow = [
@@ -1104,10 +1141,14 @@ function updateEditPriceEstimate() {
     const seriesName = document.getElementById('edit-job-series').value;
     const email = state.isAdmin ? document.getElementById('edit-job-email').value : state.user.email;
 
+    const idx = document.getElementById('edit-job-index').value;
+    const job = state.jobs.find(j => j._rowIndex === parseInt(idx));
+    const jobDate = job ? job['Tarih'] : null; // Get the job date from the existing job
+
     const s = state.series.find(x => x['Seri Adı'] === seriesName);
     const difficulty = s ? s['Zorluk'] : 'ORTA';
 
-    const price = calculateJobPrice(role, kb, difficulty, email);
+    const price = calculateJobPrice(role, kb, difficulty, email, jobDate);
     document.getElementById('edit-job-price').value = price;
 }
 
@@ -1259,7 +1300,8 @@ function updatePriceEstimate() {
     const series = state.series.find(s => s['Seri Adı'] === seriesName);
     const difficulty = series ? series['Zorluk'] : 'ORTA';
 
-    const price = calculateJobPrice(role, kb, difficulty, email);
+    const jobDate = new Date().toISOString().split('T')[0];
+    const price = calculateJobPrice(role, kb, difficulty, email, jobDate);
 
     const estimateEl = document.getElementById('add-job-price-estimate');
     if (kb > 0 || role.includes('Temiz')) {
@@ -1270,11 +1312,25 @@ function updatePriceEstimate() {
     }
 }
 
-function calculateJobPrice(role, kb, difficulty = 'ORTA', targetEmail = null) {
+function calculateJobPrice(role, kb, difficulty = 'ORTA', targetEmail = null, jobDate = null) {
     // Check if user is on camp (from state.members)
     const emailToCheck = (targetEmail || state.user?.email || '').toLowerCase();
     const member = state.members.find(m => (m['Email'] || '').toLowerCase() === emailToCheck);
-    if (member && member['Kamp'] === 'Evet') return 0;
+
+    if (member && member['Kamp'] === 'Evet') {
+        const graduationDate = member['Mezuniyet'];
+        if (graduationDate) {
+            const currentJobDate = jobDate || new Date().toISOString().split('T')[0];
+            // Eğer iş tarihi mezuniyet tarihinden büyükse (sonraysa), ücret hesaplanır
+            if (currentJobDate > graduationDate) {
+                // Mezun olmuş, normal hesapla
+            } else {
+                return 0; // Hala kampta
+            }
+        } else {
+            return 0; // Mezuniyet tarihi yoksa her zaman 0
+        }
+    }
 
     // Get latest pricing from state
     const p = state.pricing && state.pricing.length > 0 ? state.pricing[0] : null;
@@ -1588,7 +1644,7 @@ async function syncUploadedData(uploadedData) {
             f.raw_id || '', // Dosya/Link
             f.role,
             f.size_kb,
-            calculateJobPrice(f.role, f.size_kb, f.difficulty || 'ORTA', email),
+            calculateJobPrice(f.role, f.size_kb, f.difficulty || 'ORTA', email, f.date),
             state.members.find(m => m['Email'].toLowerCase() === email)?.['İsim'] || email,
             email,
             f.difficulty || 'ORTA'
@@ -1637,7 +1693,7 @@ async function autoUpdateRelatedJobs(uploadedFiles) {
         );
 
         related.forEach(rj => {
-            const newPrice = calculateJobPrice(rj['Rol'], kb, rj['Zorluk'] || 'ORTA', rj['Email']);
+            const newPrice = calculateJobPrice(rj['Rol'], kb, rj['Zorluk'] || 'ORTA', rj['Email'], rj['Tarih']);
 
             // Collect updates
             const kbCol = getColumnIndex(CONFIG.SHEETS.JOBS, 'Ref KB');
