@@ -1338,35 +1338,77 @@ async function deleteJob(rowIndex) {
 // HTML UPLOAD & SYNC LOGIC
 // ============================================================
 async function handleHTMLUpload(event) {
-    showToast('Dosya okunuyor...', 'info');
+    showToast('Dosya analiz ediliyor...', 'info');
     const file = event.target.files[0];
-    if (!file) {
-        showToast('Dosya seçilmedi!', 'error');
-        return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = async (e) => {
         const content = e.target.result;
-        // Extract RAW_DATA using a more robust regex
-        const match = content.match(/(?:const|var|let)\s+RAW_DATA\s*=\s*(\{[\s\S]*?\});/);
-
-        if (!match) {
-            console.error('RAW_DATA pattern not found in file content');
-            showToast('HATA: Dosya içinde RAW_DATA bloğu bulunamadı!', 'error');
-            return;
-        }
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
 
         try {
-            const uploadedData = JSON.parse(match[1]);
-            if (!uploadedData.files || !Array.isArray(uploadedData.files)) {
-                showToast('Geçersiz veri formatı!', 'error');
+            // 1. Extract metadata
+            const email = doc.getElementById('workerName')?.textContent?.trim() || '';
+            const rangeText = doc.getElementById('dateRange')?.textContent?.trim() || '';
+            const [startDate, endDate] = rangeText.split(' - ').map(s => s.trim());
+
+            if (!email || !startDate) {
+                showToast('Geçersiz dosya yapısı! (Kullanıcı veya tarih bulunamadı)', 'error');
                 return;
             }
 
-            if (!confirm(`${uploadedData.worker_email} kullanıcısının ${uploadedData.start_date} - ${uploadedData.end_date} arasındaki verileri senkronize edilsin mi? (Eski veriler silinecektir)`)) {
+            // 2. Extract rows from table
+            const files = [];
+            const rows = doc.querySelectorAll('#tableBody tr');
+
+            rows.forEach(row => {
+                // Find inputs/selects. Template saveHTML() sets value attributes.
+                const dateInput = row.querySelector('td[data-label="Tarih"] input');
+                const seriesInput = row.querySelector('td[data-label="Seri"] input');
+                const fileInput = row.querySelector('td[data-label="Dosya / Bölüm"] input');
+                const roleSelect = row.querySelector('td[data-label="Rol"] select');
+                const detailInput = row.querySelector('td[data-label="Detay (KB / Zorluk)"] input, td[data-label="Detay (KB / Zorluk)"] select');
+
+                const role = roleSelect?.value || '';
+                const isCleaner = role.includes('Temizlikçi');
+
+                files.push({
+                    date: dateInput?.value || '',
+                    series: seriesInput?.value || '',
+                    file_name: fileInput?.value || '',
+                    role: role,
+                    size_kb: !isCleaner ? parseFloat(detailInput?.value || 0) : 0,
+                    difficulty: isCleaner ? (detailInput?.value || 'ORTA') : 'ORTA',
+                    raw_id: row.getAttribute('data-raw-id') || ''
+                });
+            });
+
+            // 3. Fallback to RAW_DATA if table is empty
+            if (files.length === 0) {
+                const match = content.match(/(?:const|var|let)\s+RAW_DATA\s*=\s*(\{[\s\S]*?\});/);
+                if (match) {
+                    const raw = JSON.parse(match[1]);
+                    if (raw.files) files.push(...raw.files);
+                }
+            }
+
+            if (files.length === 0) {
+                showToast('Dosyada aktarılacak iş bulunamadı!', 'warning');
                 return;
             }
+
+            if (!confirm(`${email} kullanıcısının ${files.length} işi senkronize edilsin mi? (Eski verileriniz silinecektir)`)) {
+                return;
+            }
+
+            const uploadedData = {
+                worker_email: email,
+                start_date: startDate,
+                end_date: endDate,
+                files: files
+            };
 
             await syncUploadedData(uploadedData);
         } catch (err) {
@@ -1375,7 +1417,6 @@ async function handleHTMLUpload(event) {
         }
     };
     reader.readAsText(file);
-    // Reset input
     event.target.value = '';
 }
 
