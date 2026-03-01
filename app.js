@@ -15,7 +15,7 @@ const CONFIG = {
     SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email openid',
 
     // Spreadsheet ID — sheets_sync.py tarafından oluşturulur
-    SPREADSHEET_ID: '1NQYdKIVLCD6o42nEIAAUtpkl0fomm6Rm4sOXsIwYw6o',
+    SPREADSHEET_ID: '1ftpgXU3Y58fOmc3XU-RovYLSAE3Xr19ksnRpeg7eWJk',
 
     // Sheet tab isimleri
     SHEETS: {
