@@ -607,6 +607,7 @@ function renderToolbar(showRoleFilter, force = false) {
     }
 
     html += `<button class="btn-action primary" onclick="openAddJobModal()">✨ Yeni İş Ekle</button>`;
+    html += `<button class="btn-action secondary" onclick="document.getElementById('html-upload-input').click()">📁 HTML'den Aktar</button>`;
     html += `<button class="btn-action secondary" onclick="loadAllData()">🔄 Yenile</button>`;
 
     toolbarEl.innerHTML = html;
@@ -1330,5 +1331,150 @@ async function deleteJob(rowIndex) {
         showToast('Silme hatası: ' + e.message, 'error');
     } finally {
         showLoading(false);
+    }
+}
+
+// ============================================================
+// HTML UPLOAD & SYNC LOGIC
+// ============================================================
+async function handleHTMLUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        const content = e.target.result;
+        // Extract RAW_DATA using regex
+        const match = content.match(/const RAW_DATA = (\{.*?\});/s);
+        if (!match) {
+            showToast('Geçerli bir RAW_DATA bulunamadı!', 'error');
+            return;
+        }
+
+        try {
+            const uploadedData = JSON.parse(match[1]);
+            if (!uploadedData.files || !Array.isArray(uploadedData.files)) {
+                showToast('Geçersiz veri formatı!', 'error');
+                return;
+            }
+
+            if (!confirm(`${uploadedData.worker_email} kullanıcısının ${uploadedData.start_date} - ${uploadedData.end_date} arasındaki verileri senkronize edilsin mi? (Eski veriler silinecektir)`)) {
+                return;
+            }
+
+            await syncUploadedData(uploadedData);
+        } catch (err) {
+            showToast('Veri işleme hatası: ' + err.message, 'error');
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+    // Reset input
+    event.target.value = '';
+}
+
+async function syncUploadedData(uploadedData) {
+    showLoading(true);
+    try {
+        const email = uploadedData.worker_email.toLowerCase();
+        const start = uploadedData.start_date;
+        const end = uploadedData.end_date;
+
+        // 1. Find and clear existing jobs for this user in this range
+        const jobsToClear = state.jobs.filter(j =>
+            (j['Email'] || '').toLowerCase() === email &&
+            (j['Tarih'] || '') >= start &&
+            (j['Tarih'] || '') <= end
+        );
+
+        if (jobsToClear.length > 0) {
+            showToast(`${jobsToClear.length} eski iş temizleniyor...`, 'info');
+            const promises = jobsToClear.map(j => {
+                const range = `'${CONFIG.SHEETS.JOBS}'!A${j._rowIndex}:K${j._rowIndex}`;
+                const emptyRow = new Array(11).fill('');
+                return sheetsUpdate(range, [emptyRow]);
+            });
+            await Promise.all(promises);
+        }
+
+        // 2. Prepare new rows
+        const newRows = uploadedData.files.map(f => [
+            'NEW',
+            f.date,
+            f.series,
+            f.file_name,
+            f.raw_id || '', // Dosya/Link
+            f.role,
+            f.size_kb,
+            calculateJobPrice(f.role, f.size_kb, f.difficulty || 'ORTA', email),
+            state.members.find(m => m['Email'].toLowerCase() === email)?.['İsim'] || email,
+            email,
+            f.difficulty || 'ORTA'
+        ]);
+
+        // 3. Append new jobs
+        if (newRows.length > 0) {
+            await sheetsAppend(`'${CONFIG.SHEETS.JOBS}'!A2`, newRows);
+        }
+
+        showToast(`${newRows.length} iş başarıyla aktarıldı. ✨`, 'success');
+
+        // 4. Auto Update Related Jobs (KB Sync)
+        await autoUpdateRelatedJobs(uploadedData.files);
+
+        await loadAllData();
+    } catch (err) {
+        showToast('Senkronizasyon hatası: ' + err.message, 'error');
+        console.error(err);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function autoUpdateRelatedJobs(uploadedFiles) {
+    const translatorJobs = uploadedFiles.filter(f => f.role.includes('Çevirmen'));
+    if (translatorJobs.length === 0) return;
+
+    showToast('İlişkili işler taranıyor (KB Senkronizasyonu)...', 'info');
+
+    // Refresh local state to get the latest before cross-referencing
+    await loadAllData();
+
+    const updates = [];
+    translatorJobs.forEach(tJob => {
+        const kb = parseFloat(tJob.size_kb);
+        if (isNaN(kb) || kb <= 0) return;
+
+        // Find jobs in same series/chapter that are NOT translators
+        const related = state.jobs.filter(j =>
+            j['Seri'] === tJob.series &&
+            j['Bölüm'] === tJob.file_name &&
+            !j['Rol'].includes('Çevirmen') &&
+            parseFloat(j['Ref KB'] || 0) === 0 // Only update if KB was missing/zero
+        );
+
+        related.forEach(rj => {
+            const newPrice = calculateJobPrice(rj['Rol'], kb, rj['Zorluk'] || 'ORTA', rj['Email']);
+
+            // Collect updates
+            const kbCol = getColumnIndex(CONFIG.SHEETS.JOBS, 'Ref KB');
+            const priceCol = getColumnIndex(CONFIG.SHEETS.JOBS, 'Ücret (TL)');
+
+            updates.push({
+                range: `'${CONFIG.SHEETS.JOBS}'!${String.fromCharCode(64 + kbCol)}${rj._rowIndex}`,
+                values: [[kb]]
+            });
+            updates.push({
+                range: `'${CONFIG.SHEETS.JOBS}'!${String.fromCharCode(64 + priceCol)}${rj._rowIndex}`,
+                values: [[newPrice]]
+            });
+        });
+    });
+
+    if (updates.length > 0) {
+        showToast(`${updates.length / 2} ilişkili iş güncelleniyor...`, 'info');
+        const promises = updates.map(u => sheetsUpdate(u.range, u.values));
+        await Promise.all(promises);
+        showToast('KB senkronizasyonu tamamlandı. ✓', 'success');
     }
 }
