@@ -1437,15 +1437,16 @@ async function syncUploadedData(uploadedData) {
         // Helper to normalize date strings to YYYY-MM-DD for comparison
         const normalizeDate = (d) => {
             if (!d) return "";
+            const str = String(d).trim();
             // If already YYYY-MM-DD
-            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
             // If DD/MM/YYYY or DD.MM.YYYY
-            const parts = d.split(/[./-]/);
+            const parts = str.split(/[./-]/);
             if (parts.length === 3) {
                 if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
                 return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
             }
-            return d;
+            return str;
         };
 
         const nStart = normalizeDate(start);
