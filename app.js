@@ -471,10 +471,18 @@ function renderMembers() {
                 const badge = val === 'Evet' ? '<span class="role-badge black">HAYIR</span>' : '<span class="role-badge" style="opacity:0.3">TEMİZ</span>';
                 html += `<td data-label="${col}">${badge}</td>`;
             } else if (col === 'Toplam Kazanç') {
+                const email = (member['Email'] || '').toLowerCase();
                 const total = state.jobs
-                    .filter(j => (j['Email'] || '').toLowerCase() === (member['Email'] || '').toLowerCase())
+                    .filter(j => (j['Email'] || '').toLowerCase() === email)
                     .reduce((sum, j) => sum + parseFloat(j['Ücret (TL)'] || 0), 0);
-                html += `<td data-label="${col}" style="font-weight:800; color:var(--accent-green);">${Math.round(total)} TL</td>`;
+
+                // Stop propagation so clicking the earnings doesn't open the "Edit Member" modal
+                html += `
+                    <td data-label="${col}" 
+                        onclick="event.stopPropagation(); viewMemberJobs('${email}', '${escapeHtml(member['İsim'] || '')}')"
+                        style="font-weight:800; color:var(--accent-green); cursor:pointer; text-decoration:underline;">
+                        ${Math.round(total)} TL
+                    </td>`;
             } else {
                 html += `<td data-label="${col}">${escapeHtml(val)}</td>`;
             }
@@ -485,6 +493,46 @@ function renderMembers() {
     html += '</tbody></table>';
     document.getElementById('table-container').innerHTML = html;
 }
+
+// ============================================================
+// MEMBER JOBS VIEW
+// ============================================================
+function viewMemberJobs(email, name) {
+    const jobs = state.jobs.filter(j => (j['Email'] || '').toLowerCase() === email.toLowerCase());
+    const tbody = document.getElementById('member-jobs-table-body');
+    const title = document.getElementById('member-jobs-title');
+    const subtitle = document.getElementById('member-jobs-subtitle');
+
+    title.textContent = `${name} - İş Geçmişi`;
+    subtitle.textContent = `${email} | Toplam ${jobs.length} iş`;
+
+    let html = '';
+    if (jobs.length === 0) {
+        html = '<tr><td colspan="6" style="text-align:center; padding:40px;">Bu üyeye ait henüz bir iş kaydı bulunamadı.</td></tr>';
+    } else {
+        // Sort by date descending
+        [...jobs].sort((a, b) => new Date(b['Tarih'] || 0) - new Date(a['Tarih'] || 0)).forEach(job => {
+            html += `
+                <tr>
+                    <td data-label="Tarih">${job['Tarih'] || ''}</td>
+                    <td data-label="Seri">${job['Seri'] || ''}</td>
+                    <td data-label="Bölüm">${job['Bölüm'] || ''}</td>
+                    <td data-label="Rol">${getRoleBadge(job['Rol'] || '')}</td>
+                    <td data-label="KB">${job['Size (KB/Bölüm)'] || '0'}</td>
+                    <td data-label="Ücret" style="font-weight:700; color:var(--accent-green);">${Math.round(job['Ücret (TL)'] || 0)} TL</td>
+                </tr>
+            `;
+        });
+    }
+
+    tbody.innerHTML = html;
+    document.getElementById('member-jobs-modal').classList.add('active');
+}
+
+function closeMemberJobsModal() {
+    document.getElementById('member-jobs-modal').classList.remove('active');
+}
+
 
 // ============================================================
 // RENDER SERIES

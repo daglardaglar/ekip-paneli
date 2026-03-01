@@ -431,13 +431,46 @@
                     <button class="btn-action secondary" onclick="closeEditMemberModal()">İptal</button>
                     <button class="btn-action primary" onclick="submitEditMember()">Kaydet</button>
                 </div>
+                <!-- ===== MEMBER JOBS MODAL ===== -->
+                <div id="member-jobs-modal" class="modal-overlay">
+                    <div class="modal-card wide">
+                        <div class="modal-header">
+                            <div>
+                                <h2 id="member-jobs-title">Üye İş Geçmişi</h2>
+                                <p id="member-jobs-subtitle" style="font-size: 0.8rem; color: var(--text-muted);"></p>
+                            </div>
+                            <button class="btn-close" onclick="closeMemberJobsModal()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="table-container" style="max-height: 60vh; overflow-y: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarih</th>
+                                            <th>Seri</th>
+                                            <th>Bölüm</th>
+                                            <th>Rol</th>
+                                            <th>KB</th>
+                                            <th>Ücret</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="member-jobs-table-body">
+                                        <!-- Jobs will be listed here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-action primary" onclick="closeMemberJobsModal()">Kapat</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <!-- App Script -->
-        <datalist id="member-emails-list"></datalist>
+            <!-- App Script -->
+            <datalist id="member-emails-list"></datalist>
 
-        <script src="app.js"></script>
+            <script src="app.js"></script>
 </body>
 <script>
     // Google Identity Services yüklendiğinde uygulamayı başlat
