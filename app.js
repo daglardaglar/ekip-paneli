@@ -1484,26 +1484,18 @@ async function syncUploadedData(uploadedData) {
         };
 
         // 1. Find and clear existing jobs for this user in this range
-        // USER REQUEST: Ignore dates, match only by Email and the specific files being uploaded
-        const uploadedFileKeys = new Set(uploadedData.files.map(f => {
-            const s = String(f.series || '').trim().toLowerCase();
-            const e = String(f.file_name || '').trim().toLowerCase();
-            return `${s}|${e}`;
-        }));
-
-        console.log('Target files to clear from DB (Series|Episode):', Array.from(uploadedFileKeys));
+        // BROAD CLEARING: Clear ALL jobs for this user in the specified date range
+        console.log(`Broad clearing for ${email} from ${nStart} to ${nEnd}`);
 
         const jobsToClear = state.jobs.filter(j => {
             const jEmail = (getVal(j, 'Email') || '').toLowerCase();
             if (jEmail !== email) return false;
 
-            const jSeries = String(getVal(j, 'Seri') || '').trim().toLowerCase();
-            const jEpisode = String(getVal(j, 'Bölüm') || '').trim().toLowerCase();
-            const jKey = `${jSeries}|${jEpisode}`;
+            const jDate = normalizeDate(getVal(j, 'Tarih') || '');
+            const isInRange = jDate >= nStart && jDate <= nEnd;
 
-            const match = uploadedFileKeys.has(jKey);
-            if (match) console.log(`Found job to clear: row ${j._rowIndex}, key: ${jKey}`);
-            return match;
+            if (isInRange) console.log(`Clearing job at row ${j._rowIndex}: ${getVal(j, 'Seri')} | ${getVal(j, 'Bölüm')} (${jDate})`);
+            return isInRange;
         });
 
         if (jobsToClear.length > 0) {
@@ -1514,10 +1506,10 @@ async function syncUploadedData(uploadedData) {
                 return sheetsUpdate(range, [emptyRow]);
             });
             await Promise.all(promises);
-            console.log(`Cleared ${jobsToClear.length} rows.`);
+            console.log(`Successfully cleared ${jobsToClear.length} rows.`);
         } else {
-            console.log("No matching jobs found to clear.");
-            showToast('Eski iş bulunamadı (Email ve Seri/Bölüm eşleşmedi).', 'info');
+            console.log("No jobs found to clear for this user in this date range.");
+            showToast('Temizlenecek eski iş bulunamadı.', 'info');
         }
 
         // 2. Prepare new rows
