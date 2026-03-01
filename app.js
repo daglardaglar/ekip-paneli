@@ -1350,31 +1350,61 @@ async function handleHTMLUpload(event) {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const content = e.target.result;
+
+        // 1. First, try to extract metadata from RAW_DATA script block (it's the most reliable source)
+        let email = '';
+        let startDate = '';
+        let endDate = '';
+        let rawFilesFallback = [];
+
+        const rawMatch = content.match(/(?:const|var|let)\s+RAW_DATA\s*=\s*(\{[\s\S]*?\});/);
+        if (rawMatch) {
+            try {
+                const raw = JSON.parse(rawMatch[1]);
+                email = raw.worker_email || '';
+                startDate = raw.start_date || '';
+                endDate = raw.end_date || '';
+                rawFilesFallback = raw.files || [];
+                console.log('Metadata extracted from RAW_DATA:', { email, startDate, endDate });
+            } catch (err) {
+                console.warn('Failed to parse RAW_DATA script:', err);
+            }
+        }
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(content, 'text/html');
 
-        try {
-            // 1. Extract metadata
-            const email = doc.getElementById('workerName')?.textContent?.trim() || '';
+        // 2. If metadata still missing, try DOM (only works if saved with specific attributes, rare for spans)
+        if (!email) email = doc.getElementById('workerName')?.textContent?.trim() || '';
+        if (!startDate) {
             const rangeText = doc.getElementById('dateRange')?.textContent?.trim() || '';
-            const [startDate, endDate] = rangeText.split(' - ').map(s => s.trim());
-
-            if (!email || !startDate) {
-                showToast('Geçersiz dosya yapısı! (Kullanıcı veya tarih bulunamadı)', 'error');
-                return;
+            if (rangeText && rangeText.includes(' - ')) {
+                [startDate, endDate] = rangeText.split(' - ').map(s => s.trim());
             }
+        }
 
-            // 2. Extract rows from table
+        // Clean up placeholders
+        if (email === '-') email = '';
+        if (startDate === '-') startDate = '';
+
+        if (!email || !startDate) {
+            showToast('HATA: Kullanıcı bilgisi veya tarih aralığı bulunamadı!', 'error');
+            return;
+        }
+
+        try {
+            // 3. Extract rows from table (current visible state)
             const files = [];
             const rows = doc.querySelectorAll('#tableBody tr');
 
             rows.forEach(row => {
-                // Find inputs/selects. Template saveHTML() sets value attributes.
                 const dateInput = row.querySelector('td[data-label="Tarih"] input');
                 const seriesInput = row.querySelector('td[data-label="Seri"] input');
                 const fileInput = row.querySelector('td[data-label="Dosya / Bölüm"] input');
                 const roleSelect = row.querySelector('td[data-label="Rol"] select');
                 const detailInput = row.querySelector('td[data-label="Detay (KB / Zorluk)"] input, td[data-label="Detay (KB / Zorluk)"] select');
+
+                if (!dateInput && !seriesInput) return; // Skip empty/invalid rows
 
                 const role = roleSelect?.value || '';
                 const isCleaner = role.includes('Temizlikçi');
@@ -1390,21 +1420,15 @@ async function handleHTMLUpload(event) {
                 });
             });
 
-            // 3. Fallback to RAW_DATA if table is empty
-            if (files.length === 0) {
-                const match = content.match(/(?:const|var|let)\s+RAW_DATA\s*=\s*(\{[\s\S]*?\});/);
-                if (match) {
-                    const raw = JSON.parse(match[1]);
-                    if (raw.files) files.push(...raw.files);
-                }
-            }
+            // 4. Use RAW_DATA files if table is empty
+            const finalFiles = files.length > 0 ? files : rawFilesFallback;
 
-            if (files.length === 0) {
+            if (finalFiles.length === 0) {
                 showToast('Dosyada aktarılacak iş bulunamadı!', 'warning');
                 return;
             }
 
-            if (!confirm(`${email} kullanıcısının ${files.length} işi senkronize edilsin mi? (Eski verileriniz silinecektir)`)) {
+            if (!confirm(`${email} kullanıcısının ${finalFiles.length} işi senkronize edilsin mi? (Eski verileriniz silinecektir)`)) {
                 return;
             }
 
@@ -1412,7 +1436,7 @@ async function handleHTMLUpload(event) {
                 worker_email: email,
                 start_date: startDate,
                 end_date: endDate,
-                files: files
+                files: finalFiles
             };
 
             await syncUploadedData(uploadedData);
@@ -1443,6 +1467,7 @@ async function syncUploadedData(uploadedData) {
             // If DD/MM/YYYY or DD.MM.YYYY
             const parts = str.split(/[./-]/);
             if (parts.length === 3) {
+                // Handle YYYY-MM-DD or DD-MM-YYYY
                 if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
                 return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
             }
@@ -1452,10 +1477,16 @@ async function syncUploadedData(uploadedData) {
         const nStart = normalizeDate(start);
         const nEnd = normalizeDate(end);
 
+        // Get value from object with case-insensitive key
+        const getVal = (obj, key) => {
+            const foundKey = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
+            return foundKey ? obj[foundKey] : '';
+        };
+
         // 1. Find and clear existing jobs for this user in this range
         const jobsToClear = state.jobs.filter(j => {
-            const jEmail = (j['Email'] || '').toLowerCase();
-            const jDate = normalizeDate(j['Tarih'] || '');
+            const jEmail = (getVal(j, 'Email') || '').toLowerCase();
+            const jDate = normalizeDate(getVal(j, 'Tarih') || '');
 
             const match = jEmail === email && jDate >= nStart && jDate <= nEnd;
             if (match) console.log(`Found job to clear: row ${j._rowIndex}, date ${jDate}`);
@@ -1464,7 +1495,6 @@ async function syncUploadedData(uploadedData) {
 
         if (jobsToClear.length > 0) {
             showToast(`${jobsToClear.length} eski iş temizleniyor...`, 'info');
-            // Group by row to avoid unnecessary calls? Or just promise all
             const promises = jobsToClear.map(j => {
                 const range = `'${CONFIG.SHEETS.JOBS}'!A${j._rowIndex}:K${j._rowIndex}`;
                 const emptyRow = new Array(11).fill('');
@@ -1474,6 +1504,7 @@ async function syncUploadedData(uploadedData) {
             console.log(`Cleared ${jobsToClear.length} rows.`);
         } else {
             console.log("No jobs found to clear in this range.");
+            showToast('Eski iş bulunamadı veya tarih aralığı eşleşmedi.', 'info');
         }
 
         // 2. Prepare new rows
@@ -1491,7 +1522,7 @@ async function syncUploadedData(uploadedData) {
             f.difficulty || 'ORTA'
         ]);
 
-        // 3. Append new jobs (at least one row to avoid error)
+        // 3. Append new jobs
         if (newRows.length > 0) {
             await sheetsAppend(`'${CONFIG.SHEETS.JOBS}'!A2`, newRows);
             console.log(`Appended ${newRows.length} new rows.`);
